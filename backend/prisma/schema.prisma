@@ -1,0 +1,160 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         UserRole
+  buildingId   String?
+  building     Building? @relation(fields: [buildingId], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relaciones
+  expenses        Expense[]
+  payments        Payment[]
+  tickets         Ticket[]       @relation("TicketOwner")
+  assignedTickets Ticket[]       @relation("TicketAssignee")
+  assignedTasks   Task[]         @relation("AssignedTasks")
+  createdTasks    Task[]         @relation("CreatedTasks")
+  refreshTokens   RefreshToken[]
+  files           File[]
+
+  @@map("users")
+}
+
+model Building {
+  id        String   @id @default(uuid())
+  name      String
+  address   String
+  city      String
+  createdAt DateTime @default(now())
+
+  // Relaciones
+  users    User[]
+  expenses Expense[]
+
+  @@map("buildings")
+}
+
+model Expense {
+  id         String        @id @default(uuid())
+  concept    String
+  amount     Float
+  dueDate    DateTime
+  status     ExpenseStatus @default(OPEN)
+  buildingId String
+  building   Building      @relation(fields: [buildingId], references: [id])
+  createdAt  DateTime      @default(now())
+
+  // Relaciones
+  payments Payment[]
+  user     User?     @relation(fields: [userId], references: [id])
+  userId   String?
+
+  @@map("expenses")
+}
+
+model Payment {
+  id         String   @id @default(uuid())
+  amount     Float
+  date       DateTime @default(now())
+  method     String
+  expenseId  String
+  expense    Expense  @relation(fields: [expenseId], references: [id])
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  receiptUrl String?
+
+  @@map("payments")
+}
+
+model Ticket {
+  id           String       @id @default(uuid())
+  title        String
+  description  String
+  status       TicketStatus @default(OPEN)
+  userId       String
+  user         User         @relation("TicketOwner", fields: [userId], references: [id])
+  assignedTo   String?
+  assignedUser User?        @relation("TicketAssignee", fields: [assignedTo], references: [id])
+  photos       String[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@map("tickets")
+}
+
+model Task {
+  id           String     @id @default(uuid())
+  title        String
+  description  String
+  status       TaskStatus @default(PENDING)
+  assignedTo   String
+  assignedUser User       @relation("AssignedTasks", fields: [assignedTo], references: [id])
+  createdBy    String
+  createdUser  User       @relation("CreatedTasks", fields: [createdBy], references: [id])
+  photos       String[]
+  dueDate      DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@map("tasks")
+}
+
+model File {
+  id         String   @id @default(uuid())
+  key        String   @unique
+  url        String
+  mimeType   String
+  size       Int
+  uploadedBy String
+  user       User     @relation(fields: [uploadedBy], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@map("files")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  tokenHash String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@map("refresh_tokens")
+}
+
+enum UserRole {
+  ADMIN
+  MAINTENANCE
+  RESIDENT
+}
+
+enum ExpenseStatus {
+  OPEN
+  PAID
+  OVERDUE
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
