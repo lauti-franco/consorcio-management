@@ -4,8 +4,8 @@ class User {
   final String email;
   final String role;
   final String? buildingId;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt; // ← Hacer nullable
+  final DateTime? updatedAt; // ← Hacer nullable
 
   User({
     required this.id,
@@ -13,19 +13,23 @@ class User {
     required this.email,
     required this.role,
     this.buildingId,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt, // ← Ahora nullable
+    this.updatedAt, // ← Ahora nullable
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'],
-      name: json['name'],
-      email: json['email'],
-      role: json['role'],
-      buildingId: json['buildingId'],
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+      id: json['id']?.toString() ?? '', // ← Manejar null
+      name: json['name'] ?? '',
+      email: json['email'] ?? '',
+      role: json['role'] ?? 'USER',
+      buildingId: json['buildingId']?.toString(),
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt']) // ← Usar tryParse
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt']) // ← Usar tryParse
+          : null,
     );
   }
 
@@ -36,8 +40,8 @@ class User {
       'email': email,
       'role': role,
       'buildingId': buildingId,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 

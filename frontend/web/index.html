@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Consorcio Management</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- REMOVER CSP temporalmente para desarrollo -->
+    <!-- <meta http-equiv="Content-Security-Policy" content="..."> -->
+</head>
+<body>
+    <script>
+        console.log('🚀 Flutter Web iniciando...');
+        
+        // Manejo de errores global
+        window.addEventListener('error', (e) => {
+            console.error('💥 ERROR GLOBAL:', e.error);
+        });
+        
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('💥 PROMISE REJECTION:', e.reason);
+        });
+    </script>
+    
+    <script src="main.dart.js" type="application/javascript"></script>
+</body>
+</html>

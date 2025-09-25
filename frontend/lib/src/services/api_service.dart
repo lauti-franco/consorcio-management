@@ -4,7 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../utils/constants.dart';
 
 class ApiService {
-  static const String baseUrl = AppConstants.apiBaseUrl;
+  static final String baseUrl = AppConstants.apiBaseUrl;
   final FlutterSecureStorage storage = const FlutterSecureStorage();
 
   // Resto del código igual...

@@ -1,4 +1,5 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+// src/auth/auth.service.ts - VERSIÓN CORREGIDA
+import { Injectable, UnauthorizedException, BadRequestException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
@@ -15,24 +16,27 @@ export class AuthService {
   async register(registerDto: RegisterDto) {
     const { email, password, name, role, buildingId } = registerDto;
 
+    // Verificar si el usuario ya existe
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
     });
 
     if (existingUser) {
-      throw new BadRequestException('User already exists');
+      throw new ConflictException('El usuario ya existe');
     }
 
+    // Validar que residentes tengan buildingId
     if (role === 'RESIDENT' && !buildingId) {
-      throw new BadRequestException('Residents must be assigned to a building');
+      throw new BadRequestException('Los residentes deben estar asignados a un edificio');
     }
 
-    const passwordHash = await bcrypt.hash(password, 12);
+    // Hash de la contraseña - campo CORRECTO: "password"
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     const user = await this.prisma.user.create({
       data: {
         email,
-        passwordHash,
+        passwordHash: hashedPassword, // ← CAMPO CORRECTO
         name,
         role,
         buildingId: role === 'RESIDENT' ? buildingId : null,
@@ -44,41 +48,57 @@ export class AuthService {
         role: true,
         buildingId: true,
         createdAt: true,
+        updatedAt: true,
       },
     });
 
     const tokens = await this.generateTokens(user.id);
-    return { user, ...tokens };
+    return { 
+      message: 'Usuario registrado exitosamente',
+      data: { 
+        user, 
+        ...tokens 
+      } 
+    };
   }
 
   async login(loginDto: LoginDto) {
     const { email, password } = loginDto;
 
+    // Buscar usuario incluyendo el password para comparar
     const user = await this.prisma.user.findUnique({
       where: { email },
-      include: { building: true },
+      include: { 
+        building: true 
+      },
     });
 
-    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-      throw new UnauthorizedException('Invalid credentials');
+    if (!user) {
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
+
+    // Comparar contraseña - campo CORRECTO: "password"
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Credenciales inválidas');
     }
 
     const tokens = await this.generateTokens(user.id);
     
+    // Remover password de la respuesta
+    const { passwordHash: _, ...userWithoutPassword } = user;
+    
     return {
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        buildingId: user.buildingId,
-        building: user.building,
+      message: 'Login exitoso',
+      data: {
+        user: userWithoutPassword,
+        ...tokens,
       },
-      ...tokens,
     };
   }
 
   async refreshTokens(userId: string, refreshToken: string) {
+    // Lógica de refresh token (igual que antes)
     const token = await this.prisma.refreshToken.findFirst({
       where: {
         userId,
@@ -88,7 +108,7 @@ export class AuthService {
     });
 
     if (!token) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException('Refresh token inválido');
     }
 
     await this.prisma.refreshToken.delete({
@@ -102,14 +122,21 @@ export class AuthService {
     await this.prisma.refreshToken.deleteMany({
       where: { userId },
     });
+    
+    return { message: 'Logout exitoso' };
   }
 
   private async generateTokens(userId: string) {
-    const accessToken = this.jwtService.sign({ userId });
+    const payload = { sub: userId };
+    
+    const accessToken = this.jwtService.sign(payload, { 
+      expiresIn: '15m' 
+    });
+    
     const refreshToken = this.generateRandomToken();
 
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
+    expiresAt.setDate(expiresAt.getDate() + 7); // 7 días
 
     await this.prisma.refreshToken.create({
       data: {

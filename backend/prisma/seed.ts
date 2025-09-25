@@ -57,12 +57,12 @@ async function main() {
     console.log('Building created:', building.name);
 
     // Crear usuario admin
-    const adminPassword = await bcrypt.hash('admin123', 12);
+    const adminPasswordHash = await bcrypt.hash('admin123', 12);
     const admin = await prisma.user.create({
       data: {
         name: 'Administrador Principal',
         email: 'admin@consorcio.com',
-        passwordHash: adminPassword,
+        passwordHash: adminPasswordHash,
         role: UserRole.ADMIN,
       },
     });
@@ -70,12 +70,12 @@ async function main() {
     console.log('Admin user created:', admin.email);
 
     // Crear usuario mantenimiento
-    const maintenancePassword = await bcrypt.hash('mant123', 12);
+    const maintenancePasswordHash = await bcrypt.hash('mant123', 12);
     const maintenance = await prisma.user.create({
       data: {
         name: 'Técnico de Mantenimiento',
         email: 'mantenimiento@consorcio.com',
-        passwordHash: maintenancePassword,
+        passwordHash: maintenancePasswordHash,
         role: UserRole.MAINTENANCE,
       },
     });
@@ -83,12 +83,12 @@ async function main() {
     console.log('Maintenance user created:', maintenance.email);
 
     // Crear usuario residente
-    const residentPassword = await bcrypt.hash('resi123', 12);
+    const residentPasswordHash = await bcrypt.hash('resi123', 12);
     const resident = await prisma.user.create({
       data: {
         name: 'Juan Resident',
         email: 'residente@consorcio.com',
-        passwordHash: residentPassword,
+        passwordHash: residentPasswordHash,
         role: UserRole.RESIDENT,
         buildingId: building.id,
       },

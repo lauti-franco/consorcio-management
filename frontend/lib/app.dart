@@ -1,4 +1,6 @@
+// lib/app.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'src/providers/auth_provider.dart';
 import 'src/providers/theme_provider.dart';
@@ -20,10 +22,16 @@ class ConsorcioApp extends StatelessWidget {
       theme: themeProvider.currentTheme,
       home: const AppWrapper(),
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       supportedLocales: const [
         Locale('es', 'AR'),
         Locale('en', 'US'),
       ],
+      locale: const Locale('es', 'AR'),
     );
   }
 }
@@ -51,16 +59,22 @@ class _AppWrapperState extends State<AppWrapper> {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
 
+    // Mostrar splash screen mientras carga
     if (authProvider.isLoading) {
       return const SplashScreen();
     }
 
+    // Mostrar login si no está autenticado
     if (!authProvider.isAuthenticated) {
       return const LoginScreen();
     }
 
-    // Mostrar dashboard según el rol
-    switch (authProvider.user?.role) {
+    // Redirigir según el rol
+    return _buildDashboardByRole(authProvider.user?.role);
+  }
+
+  Widget _buildDashboardByRole(String? role) {
+    switch (role) {
       case 'ADMIN':
         return const AdminDashboard();
       case 'MAINTENANCE':
@@ -68,7 +82,7 @@ class _AppWrapperState extends State<AppWrapper> {
       case 'RESIDENT':
         return const ResidentDashboard();
       default:
-        return const LoginScreen();
+        return const LoginScreen(); // Rol no reconocido
     }
   }
 }
