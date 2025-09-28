@@ -1,10 +1,11 @@
-// src/auth/auth.service.ts - VERSIÓN CORREGIDA
+
 import { Injectable, UnauthorizedException, BadRequestException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -14,7 +15,7 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto) {
-    const { email, password, name, role, buildingId } = registerDto;
+    const { email, password, name, role } = registerDto;
 
     // Verificar si el usuario ya existe
     const existingUser = await this.prisma.user.findUnique({
@@ -25,34 +26,52 @@ export class AuthService {
       throw new ConflictException('El usuario ya existe');
     }
 
-    // Validar que residentes tengan buildingId
-    if (role === 'RESIDENT' && !buildingId) {
-      throw new BadRequestException('Los residentes deben estar asignados a un edificio');
-    }
-
-    // Hash de la contraseña - campo CORRECTO: "password"
-    const hashedPassword = await bcrypt.hash(password, 12);
-
+    // Crear usuario - SIN buildingId (ya no existe en el schema)
     const user = await this.prisma.user.create({
       data: {
-        email,
-        passwordHash: hashedPassword, // ← CAMPO CORRECTO
         name,
-        role,
-        buildingId: role === 'RESIDENT' ? buildingId : null,
+        email,
+        passwordHash: await bcrypt.hash(password, 12),
+        role: role || UserRole.RESIDENT,
+        // REMOVED: buildingId ya no existe en el schema
       },
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
-        buildingId: true,
+        phone: true,
+        avatar: true,
+        isActive: true,
+        emailVerified: true,
         createdAt: true,
         updatedAt: true,
       },
     });
 
+    // Si es ADMIN, crear suscripción automáticamente
+    if (role === UserRole.ADMIN) {
+      await this.prisma.subscription.create({
+        data: {
+          plan: 'STARTER',
+          status: 'ACTIVE',
+          maxBuildings: 1,
+          maxUsers: 10,
+          features: {
+            advancedReports: false,
+            apiAccess: false,
+            customBranding: false,
+            prioritySupport: false
+          },
+          userId: user.id,
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 días
+        },
+      });
+    }
+
     const tokens = await this.generateTokens(user.id);
+    
     return { 
       message: 'Usuario registrado exitosamente',
       data: { 
@@ -65,11 +84,20 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     const { email, password } = loginDto;
 
-    // Buscar usuario incluyendo el password para comparar
+    // Buscar usuario incluyendo relaciones necesarias
     const user = await this.prisma.user.findUnique({
       where: { email },
       include: { 
-        building: true 
+        subscription: true,
+        managedUnits: {
+          include: {
+            building: true,
+          },
+          take: 5, // Limitar unidades para no sobrecargar
+        },
+        ownedBuildings: {
+          take: 5, // Limitar edificios para no sobrecargar
+        },
       },
     });
 
@@ -77,16 +105,27 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    // Comparar contraseña - campo CORRECTO: "password"
+    // Verificar si el usuario está activo
+    if (!user.isActive) {
+      throw new UnauthorizedException('La cuenta está desactivada');
+    }
+
+    // Comparar contraseña
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
+    // Actualizar último login
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() },
+    });
+
     const tokens = await this.generateTokens(user.id);
     
-    // Remover password de la respuesta
-    const { passwordHash: _, ...userWithoutPassword } = user;
+    // Remover passwordHash de la respuesta
+    const { passwordHash, ...userWithoutPassword } = user;
     
     return {
       message: 'Login exitoso',
@@ -97,28 +136,64 @@ export class AuthService {
     };
   }
 
-  async refreshTokens(userId: string, refreshToken: string) {
-    // Lógica de refresh token (igual que antes)
-    const token = await this.prisma.refreshToken.findFirst({
-      where: {
-        userId,
-        tokenHash: await bcrypt.hash(refreshToken, 12),
-        expiresAt: { gt: new Date() },
+  async validateUser(payload: any) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        subscription: {
+          select: {
+            plan: true,
+            status: true,
+            features: true,
+          },
+        },
       },
     });
 
-    if (!token) {
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Usuario no válido o inactivo');
+    }
+
+    return user;
+  }
+
+  async refreshTokens(refreshToken: string) {
+    // Buscar token válido
+    const tokenRecord = await this.prisma.refreshToken.findFirst({
+      where: {
+        tokenHash: await bcrypt.hash(refreshToken, 12),
+        expiresAt: { gt: new Date() },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            isActive: true,
+          },
+        },
+      },
+    });
+
+    if (!tokenRecord || !tokenRecord.user.isActive) {
       throw new UnauthorizedException('Refresh token inválido');
     }
 
+    // Eliminar el token usado
     await this.prisma.refreshToken.delete({
-      where: { id: token.id },
+      where: { id: tokenRecord.id },
     });
 
-    return this.generateTokens(userId);
+    // Generar nuevos tokens
+    return this.generateTokens(tokenRecord.userId);
   }
 
   async logout(userId: string) {
+    // Eliminar todos los refresh tokens del usuario
     await this.prisma.refreshToken.deleteMany({
       where: { userId },
     });
@@ -126,18 +201,45 @@ export class AuthService {
     return { message: 'Logout exitoso' };
   }
 
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado');
+    }
+
+    // Verificar contraseña actual
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isCurrentPasswordValid) {
+      throw new BadRequestException('Contraseña actual incorrecta');
+    }
+
+    // Actualizar contraseña
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash: await bcrypt.hash(newPassword, 12),
+      },
+    });
+
+    return { message: 'Contraseña actualizada exitosamente' };
+  }
+
   private async generateTokens(userId: string) {
     const payload = { sub: userId };
     
     const accessToken = this.jwtService.sign(payload, { 
-      expiresIn: '15m' 
+      expiresIn: process.env.JWT_EXPIRES_IN || '7d' 
     });
     
     const refreshToken = this.generateRandomToken();
 
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 días
+    expiresAt.setDate(expiresAt.getDate() + 30); // 30 días
 
+    // Guardar refresh token
     await this.prisma.refreshToken.create({
       data: {
         userId,
@@ -149,10 +251,11 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
+      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
     };
   }
 
   private generateRandomToken(): string {
-    return require('crypto').randomBytes(32).toString('hex');
+    return require('crypto').randomBytes(64).toString('hex');
   }
 }

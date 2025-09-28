@@ -5,12 +5,16 @@ export declare class TasksController {
     private readonly tasksService;
     constructor(tasksService: TasksService);
     create(createTaskDto: CreateTaskDto, req: any): Promise<{
-        assignedUser: {
+        building: {
+            id: string;
+            name: string;
+        };
+        assignedTo: {
             id: string;
             name: string;
             email: string;
         };
-        createdUser: {
+        createdBy: {
             id: string;
             name: string;
             email: string;
@@ -19,21 +23,28 @@ export declare class TasksController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        dueDate: Date | null;
         status: import(".prisma/client").$Enums.TaskStatus;
+        buildingId: string;
+        dueDate: Date | null;
         title: string;
         description: string;
+        priority: import(".prisma/client").$Enums.Priority;
         photos: string[];
-        assignedTo: string;
-        createdBy: string;
+        assignedToId: string;
+        createdById: string;
     }>;
     findAll(req: any): Promise<({
-        assignedUser: {
+        building: {
+            id: string;
+            name: string;
+        };
+        assignedTo: {
             id: string;
             name: string;
             email: string;
+            phone: string;
         };
-        createdUser: {
+        createdBy: {
             id: string;
             name: string;
             email: string;
@@ -42,21 +53,29 @@ export declare class TasksController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        dueDate: Date | null;
         status: import(".prisma/client").$Enums.TaskStatus;
+        buildingId: string;
+        dueDate: Date | null;
         title: string;
         description: string;
+        priority: import(".prisma/client").$Enums.Priority;
         photos: string[];
-        assignedTo: string;
-        createdBy: string;
+        assignedToId: string;
+        createdById: string;
     })[]>;
     findOne(id: string, req: any): Promise<{
-        assignedUser: {
+        building: {
+            id: string;
+            name: string;
+            address: string;
+        };
+        assignedTo: {
             id: string;
             name: string;
             email: string;
+            phone: string;
         };
-        createdUser: {
+        createdBy: {
             id: string;
             name: string;
             email: string;
@@ -65,21 +84,27 @@ export declare class TasksController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        dueDate: Date | null;
         status: import(".prisma/client").$Enums.TaskStatus;
+        buildingId: string;
+        dueDate: Date | null;
         title: string;
         description: string;
+        priority: import(".prisma/client").$Enums.Priority;
         photos: string[];
-        assignedTo: string;
-        createdBy: string;
+        assignedToId: string;
+        createdById: string;
     }>;
     update(id: string, updateTaskDto: UpdateTaskDto, req: any): Promise<{
-        assignedUser: {
+        building: {
+            id: string;
+            name: string;
+        };
+        assignedTo: {
             id: string;
             name: string;
             email: string;
         };
-        createdUser: {
+        createdBy: {
             id: string;
             name: string;
             email: string;
@@ -88,33 +113,37 @@ export declare class TasksController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        dueDate: Date | null;
         status: import(".prisma/client").$Enums.TaskStatus;
+        buildingId: string;
+        dueDate: Date | null;
         title: string;
         description: string;
+        priority: import(".prisma/client").$Enums.Priority;
         photos: string[];
-        assignedTo: string;
-        createdBy: string;
+        assignedToId: string;
+        createdById: string;
     }>;
     remove(id: string, req: any): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        dueDate: Date | null;
         status: import(".prisma/client").$Enums.TaskStatus;
+        buildingId: string;
+        dueDate: Date | null;
         title: string;
         description: string;
+        priority: import(".prisma/client").$Enums.Priority;
         photos: string[];
-        assignedTo: string;
-        createdBy: string;
+        assignedToId: string;
+        createdById: string;
     }>;
     addPhoto(id: string, photoUrl: string, req: any): Promise<{
-        assignedUser: {
+        assignedTo: {
             id: string;
             name: string;
             email: string;
         };
-        createdUser: {
+        createdBy: {
             id: string;
             name: string;
             email: string;
@@ -123,12 +152,39 @@ export declare class TasksController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        dueDate: Date | null;
         status: import(".prisma/client").$Enums.TaskStatus;
+        buildingId: string;
+        dueDate: Date | null;
         title: string;
         description: string;
+        priority: import(".prisma/client").$Enums.Priority;
         photos: string[];
-        assignedTo: string;
-        createdBy: string;
+        assignedToId: string;
+        createdById: string;
+    }>;
+    completeTask(id: string, req: any): Promise<{
+        assignedTo: {
+            id: string;
+            name: string;
+            email: string;
+        };
+        createdBy: {
+            id: string;
+            name: string;
+            email: string;
+        };
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        status: import(".prisma/client").$Enums.TaskStatus;
+        buildingId: string;
+        dueDate: Date | null;
+        title: string;
+        description: string;
+        priority: import(".prisma/client").$Enums.Priority;
+        photos: string[];
+        assignedToId: string;
+        createdById: string;
     }>;
 }

@@ -21,7 +21,7 @@ const process_payment_dto_1 = require("./dto/process-payment.dto");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const roles_guard_1 = require("../common/guards/roles.guard");
 const roles_decorator_1 = require("../common/decorators/roles.decorator");
-const types_1 = require("../common/types");
+const user_role_enum_1 = require("../common/enums/user-role.enum");
 let PaymentsController = class PaymentsController {
     constructor(paymentsService) {
         this.paymentsService = paymentsService;
@@ -42,7 +42,7 @@ let PaymentsController = class PaymentsController {
 exports.PaymentsController = PaymentsController;
 __decorate([
     (0, common_1.Post)(),
-    (0, roles_decorator_1.Roles)(types_1.UserRole.ADMIN),
+    (0, roles_decorator_1.Roles)(user_role_enum_1.UserRole.ADMIN),
     (0, swagger_1.ApiOperation)({ summary: 'Create a payment record (Admin only)' }),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Req)()),
@@ -52,7 +52,7 @@ __decorate([
 ], PaymentsController.prototype, "create", null);
 __decorate([
     (0, common_1.Post)('process'),
-    (0, roles_decorator_1.Roles)(types_1.UserRole.RESIDENT),
+    (0, roles_decorator_1.Roles)(user_role_enum_1.UserRole.RESIDENT),
     (0, swagger_1.ApiOperation)({ summary: 'Process a payment (Resident only)' }),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Req)()),

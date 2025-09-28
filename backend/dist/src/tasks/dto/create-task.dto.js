@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateTaskDto = void 0;
 const class_validator_1 = require("class-validator");
 const swagger_1 = require("@nestjs/swagger");
+const client_1 = require("@prisma/client");
 class CreateTaskDto {
 }
 exports.CreateTaskDto = CreateTaskDto;
@@ -33,6 +34,24 @@ __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreateTaskDto.prototype, "assignedTo", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'building-id' }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CreateTaskDto.prototype, "buildingId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ enum: client_1.Priority, example: client_1.Priority.MEDIUM }),
+    (0, class_validator_1.IsEnum)(client_1.Priority),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateTaskDto.prototype, "priority", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ enum: client_1.TaskStatus, example: client_1.TaskStatus.PENDING, required: false }),
+    (0, class_validator_1.IsEnum)(client_1.TaskStatus),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateTaskDto.prototype, "status", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ example: '2024-01-20', required: false }),
     (0, class_validator_1.IsDateString)(),

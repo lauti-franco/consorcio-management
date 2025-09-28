@@ -21,7 +21,7 @@ const update_ticket_dto_1 = require("./dto/update-ticket.dto");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const roles_guard_1 = require("../common/guards/roles.guard");
 const roles_decorator_1 = require("../common/decorators/roles.decorator");
-const types_1 = require("../common/types");
+const user_role_enum_1 = require("../common/enums/user-role.enum");
 let TicketsController = class TicketsController {
     constructor(ticketsService) {
         this.ticketsService = ticketsService;
@@ -29,8 +29,8 @@ let TicketsController = class TicketsController {
     create(createTicketDto, req) {
         return this.ticketsService.create(createTicketDto, req.user.id);
     }
-    findAll(req) {
-        return this.ticketsService.findAll(req.user.id, req.user.role);
+    findAll(req, buildingId) {
+        return this.ticketsService.findAll(req.user.id, req.user.role, buildingId);
     }
     findOne(id, req) {
         return this.ticketsService.findOne(id, req.user.id, req.user.role);
@@ -38,14 +38,26 @@ let TicketsController = class TicketsController {
     update(id, updateTicketDto, req) {
         return this.ticketsService.update(id, updateTicketDto, req.user.id, req.user.role);
     }
+    remove(id, req) {
+        return this.ticketsService.remove(id, req.user.id, req.user.role);
+    }
     assignToMe(id, req) {
         return this.ticketsService.assignToMe(id, req.user.id);
+    }
+    completeTicket(id, req) {
+        return this.ticketsService.completeTicket(id, req.user.id, req.user.role);
+    }
+    addPhoto(id, photoUrl, req) {
+        return this.ticketsService.addPhoto(id, photoUrl, req.user.id, req.user.role);
+    }
+    getStats(req, buildingId) {
+        return this.ticketsService.getStats(req.user.id, req.user.role, buildingId);
     }
 };
 exports.TicketsController = TicketsController;
 __decorate([
     (0, common_1.Post)(),
-    (0, roles_decorator_1.Roles)(types_1.UserRole.RESIDENT, types_1.UserRole.ADMIN),
+    (0, roles_decorator_1.Roles)(user_role_enum_1.UserRole.RESIDENT, user_role_enum_1.UserRole.ADMIN),
     (0, swagger_1.ApiOperation)({ summary: 'Create a new ticket' }),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Req)()),
@@ -56,9 +68,11 @@ __decorate([
 __decorate([
     (0, common_1.Get)(),
     (0, swagger_1.ApiOperation)({ summary: 'Get all tickets' }),
+    (0, swagger_1.ApiQuery)({ name: 'buildingId', required: false, type: String }),
     __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Query)('buildingId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], TicketsController.prototype, "findAll", null);
 __decorate([
@@ -81,8 +95,18 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], TicketsController.prototype, "update", null);
 __decorate([
+    (0, common_1.Delete)(':id'),
+    (0, roles_decorator_1.Roles)(user_role_enum_1.UserRole.ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Delete ticket (Admin only)' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], TicketsController.prototype, "remove", null);
+__decorate([
     (0, common_1.Post)(':id/assign-to-me'),
-    (0, roles_decorator_1.Roles)(types_1.UserRole.MAINTENANCE),
+    (0, roles_decorator_1.Roles)(user_role_enum_1.UserRole.MAINTENANCE),
     (0, swagger_1.ApiOperation)({ summary: 'Assign ticket to current user (Maintenance only)' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Req)()),
@@ -90,6 +114,36 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], TicketsController.prototype, "assignToMe", null);
+__decorate([
+    (0, common_1.Post)(':id/complete'),
+    (0, roles_decorator_1.Roles)(user_role_enum_1.UserRole.MAINTENANCE, user_role_enum_1.UserRole.ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Mark ticket as completed' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], TicketsController.prototype, "completeTicket", null);
+__decorate([
+    (0, common_1.Post)(':id/photos'),
+    (0, swagger_1.ApiOperation)({ summary: 'Add photo to ticket' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)('photoUrl')),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", void 0)
+], TicketsController.prototype, "addPhoto", null);
+__decorate([
+    (0, common_1.Get)('stats/overview'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get ticket statistics' }),
+    (0, swagger_1.ApiQuery)({ name: 'buildingId', required: false, type: String }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Query)('buildingId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], TicketsController.prototype, "getStats", null);
 exports.TicketsController = TicketsController = __decorate([
     (0, swagger_1.ApiTags)('tickets'),
     (0, common_1.Controller)('tickets'),

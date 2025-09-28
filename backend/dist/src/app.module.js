@@ -22,6 +22,9 @@ const tickets_module_1 = require("./tickets/tickets.module");
 const tasks_module_1 = require("./tasks/tasks.module");
 const files_module_1 = require("./files/files.module");
 const prisma_module_1 = require("./prisma/prisma.module");
+const subscriptions_module_1 = require("./subscriptions/subscriptions.module");
+const units_module_1 = require("./units/units.module");
+const dashboard_module_1 = require("./dashboard/dashboard.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -55,6 +58,9 @@ exports.AppModule = AppModule = __decorate([
             tickets_module_1.TicketsModule,
             tasks_module_1.TasksModule,
             files_module_1.FilesModule,
+            subscriptions_module_1.SubscriptionsModule,
+            units_module_1.UnitsModule,
+            dashboard_module_1.DashboardModule,
         ],
     })
 ], AppModule);

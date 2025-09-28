@@ -13,16 +13,26 @@ exports.UpdateTicketDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
 const create_ticket_dto_1 = require("./create-ticket.dto");
 const class_validator_1 = require("class-validator");
-const types_1 = require("../../common/types");
+const swagger_2 = require("@nestjs/swagger");
+const client_1 = require("@prisma/client");
 class UpdateTicketDto extends (0, swagger_1.PartialType)(create_ticket_dto_1.CreateTicketDto) {
 }
 exports.UpdateTicketDto = UpdateTicketDto;
 __decorate([
-    (0, class_validator_1.IsEnum)(types_1.TicketStatus),
+    (0, swagger_2.ApiProperty)({ enum: client_1.TicketStatus, required: false }),
+    (0, class_validator_1.IsEnum)(client_1.TicketStatus),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], UpdateTicketDto.prototype, "status", void 0);
 __decorate([
+    (0, swagger_2.ApiProperty)({ enum: client_1.Priority, required: false }),
+    (0, class_validator_1.IsEnum)(client_1.Priority),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], UpdateTicketDto.prototype, "priority", void 0);
+__decorate([
+    (0, swagger_2.ApiProperty)({ example: 'user-id', required: false }),
+    (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], UpdateTicketDto.prototype, "assignedTo", void 0);

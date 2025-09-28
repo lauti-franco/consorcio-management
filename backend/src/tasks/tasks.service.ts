@@ -1,8 +1,9 @@
+
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
-import { UserRole } from '../common/types';
+import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class TasksService {
@@ -11,24 +12,35 @@ export class TasksService {
   async create(createTaskDto: CreateTaskDto, userId: string) {
     return this.prisma.task.create({
       data: {
-        ...createTaskDto,
-        createdBy: userId,
-        photos: createTaskDto.photos || [],
+        title: createTaskDto.title,
+        description: createTaskDto.description,
+        priority: createTaskDto.priority,
+        status: createTaskDto.status || 'PENDING',
         dueDate: createTaskDto.dueDate ? new Date(createTaskDto.dueDate) : null,
+        photos: createTaskDto.photos || [],
+        buildingId: createTaskDto.buildingId, // AGREGAR buildingId requerido
+        assignedToId: createTaskDto.assignedTo, // CAMBIAR a assignedToId
+        createdById: userId, // CAMBIAR a createdById
       },
       include: {
-        assignedUser: {
+        assignedTo: { // CAMBIAR de assignedUser a assignedTo
           select: {
             id: true,
             name: true,
             email: true,
           },
         },
-        createdUser: {
+        createdBy: { // CAMBIAR de createdUser a createdBy
           select: {
             id: true,
             name: true,
             email: true,
+          },
+        },
+        building: {
+          select: {
+            id: true,
+            name: true,
           },
         },
       },
@@ -38,30 +50,48 @@ export class TasksService {
   async findAll(userId: string, userRole: UserRole) {
     const where: any = {};
 
+    // Filtrar según el rol del usuario
     if (userRole === UserRole.MAINTENANCE) {
-      where.assignedTo = userId;
+      where.assignedToId = userId; // CAMBIAR a assignedToId
+    } else if (userRole === UserRole.RESIDENT) {
+      // Residentes ven tareas de sus edificios
+      where.building = {
+        units: {
+          some: {
+            managerId: userId,
+          },
+        },
+      };
     }
+    // Admins ven todas las tareas de sus edificios
 
     return this.prisma.task.findMany({
       where,
       include: {
-        assignedUser: {
+        assignedTo: { // CAMBIAR de assignedUser a assignedTo
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+        createdBy: { // CAMBIAR de createdUser a createdBy
           select: {
             id: true,
             name: true,
             email: true,
           },
         },
-        createdUser: {
+        building: {
           select: {
             id: true,
             name: true,
-            email: true,
           },
         },
       },
       orderBy: {
-        createdAt: 'desc',
+        dueDate: 'asc',
       },
     });
   }
@@ -70,18 +100,26 @@ export class TasksService {
     const task = await this.prisma.task.findUnique({
       where: { id },
       include: {
-        assignedUser: {
+        assignedTo: { // CAMBIAR de assignedUser a assignedTo
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+        createdBy: { // CAMBIAR de createdUser a createdBy
           select: {
             id: true,
             name: true,
             email: true,
           },
         },
-        createdUser: {
+        building: {
           select: {
             id: true,
             name: true,
-            email: true,
+            address: true,
           },
         },
       },
@@ -91,9 +129,8 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    if (userRole === UserRole.MAINTENANCE && task.assignedTo !== userId) {
-      throw new ForbiddenException('Access denied');
-    }
+    // Verificar permisos de acceso
+    await this.verifyTaskAccess(task, userId, userRole);
 
     return task;
   }
@@ -107,30 +144,40 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    if (userRole === UserRole.MAINTENANCE && task.assignedTo !== userId) {
-      throw new ForbiddenException('Access denied');
-    }
+    // Verificar permisos de acceso
+    await this.verifyTaskAccess(task, userId, userRole);
 
     try {
       return await this.prisma.task.update({
         where: { id },
         data: {
-          ...updateTaskDto,
+          title: updateTaskDto.title,
+          description: updateTaskDto.description,
+          priority: updateTaskDto.priority,
+          status: updateTaskDto.status,
           dueDate: updateTaskDto.dueDate ? new Date(updateTaskDto.dueDate) : null,
+          photos: updateTaskDto.photos,
+          assignedToId: updateTaskDto.assignedTo, // CAMBIAR a assignedToId
         },
         include: {
-          assignedUser: {
+          assignedTo: { // CAMBIAR de assignedUser a assignedTo
             select: {
               id: true,
               name: true,
               email: true,
             },
           },
-          createdUser: {
+          createdBy: { // CAMBIAR de createdUser a createdBy
             select: {
               id: true,
               name: true,
               email: true,
+            },
+          },
+          building: {
+            select: {
+              id: true,
+              name: true,
             },
           },
         },
@@ -140,13 +187,18 @@ export class TasksService {
     }
   }
 
-  async remove(id: string, userId: string) {
+  async remove(id: string, userId: string, userRole: UserRole) {
     const task = await this.prisma.task.findUnique({
       where: { id },
     });
 
     if (!task) {
       throw new NotFoundException('Task not found');
+    }
+
+    // Solo admins y el creador pueden eliminar tareas
+    if (userRole !== UserRole.ADMIN && task.createdById !== userId) {
+      throw new ForbiddenException('No tienes permisos para eliminar esta tarea');
     }
 
     try {
@@ -158,7 +210,7 @@ export class TasksService {
     }
   }
 
-  async addPhoto(id: string, photoUrl: string, userId: string) {
+  async addPhoto(id: string, photoUrl: string, userId: string, userRole: UserRole) {
     const task = await this.prisma.task.findUnique({
       where: { id },
     });
@@ -166,6 +218,9 @@ export class TasksService {
     if (!task) {
       throw new NotFoundException('Task not found');
     }
+
+    // Verificar permisos de acceso
+    await this.verifyTaskAccess(task, userId, userRole);
 
     const updatedPhotos = [...task.photos, photoUrl];
 
@@ -175,14 +230,14 @@ export class TasksService {
         photos: updatedPhotos,
       },
       include: {
-        assignedUser: {
+        assignedTo: { // CAMBIAR de assignedUser a assignedTo
           select: {
             id: true,
             name: true,
             email: true,
           },
         },
-        createdUser: {
+        createdBy: { // CAMBIAR de createdUser a createdBy
           select: {
             id: true,
             name: true,
@@ -191,5 +246,69 @@ export class TasksService {
         },
       },
     });
+  }
+
+  async completeTask(id: string, userId: string, userRole: UserRole) {
+    const task = await this.prisma.task.findUnique({
+      where: { id },
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    // Solo el asignado o un admin puede completar la tarea
+    if (userRole !== UserRole.ADMIN && task.assignedToId !== userId) {
+      throw new ForbiddenException('No tienes permisos para completar esta tarea');
+    }
+
+    return this.prisma.task.update({
+      where: { id },
+      data: {
+        status: 'COMPLETED',
+      },
+      include: {
+        assignedTo: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+  }
+
+  private async verifyTaskAccess(task: any, userId: string, userRole: UserRole) {
+    if (userRole === UserRole.ADMIN) {
+      return true; // Admins tienen acceso completo
+    }
+
+    if (userRole === UserRole.MAINTENANCE && task.assignedToId !== userId) {
+      throw new ForbiddenException('Access denied'); // CAMBIAR a assignedToId
+    }
+
+    if (userRole === UserRole.RESIDENT) {
+      // Verificar si el residente tiene unidades en el edificio de la tarea
+      const userBuildingAccess = await this.prisma.unit.findFirst({
+        where: {
+          managerId: userId,
+          buildingId: task.buildingId,
+        },
+      });
+
+      if (!userBuildingAccess) {
+        throw new ForbiddenException('Access denied');
+      }
+    }
+
+    return true;
   }
 }

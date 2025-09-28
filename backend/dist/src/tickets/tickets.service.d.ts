@@ -1,7 +1,7 @@
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
-import { UserRole } from '../common/types';
+import { UserRole } from '@prisma/client';
 export declare class TicketsService {
     private prisma;
     constructor(prisma: PrismaService);
@@ -9,19 +9,24 @@ export declare class TicketsService {
         user: {
             id: string;
             name: string;
-            building: {
-                id: string;
-                name: string;
-                address: string;
-                city: string;
-                createdAt: Date;
-            };
             email: string;
+            phone: string;
         };
-        assignedUser: {
+        building: {
+            id: string;
+            name: string;
+            address: string;
+        };
+        unit: {
+            number: string;
+            id: string;
+            floor: number;
+        };
+        assignedTo: {
             id: string;
             name: string;
             email: string;
+            phone: string;
         };
     } & {
         id: string;
@@ -29,28 +34,37 @@ export declare class TicketsService {
         updatedAt: Date;
         status: import(".prisma/client").$Enums.TicketStatus;
         userId: string;
+        buildingId: string;
+        unitId: string | null;
         title: string;
         description: string;
+        priority: import(".prisma/client").$Enums.Priority;
+        category: string;
         photos: string[];
-        assignedTo: string | null;
+        assignedToId: string | null;
     }>;
     findAll(userId: string, userRole: UserRole, buildingId?: string): Promise<({
         user: {
             id: string;
             name: string;
-            building: {
-                id: string;
-                name: string;
-                address: string;
-                city: string;
-                createdAt: Date;
-            };
             email: string;
+            phone: string;
         };
-        assignedUser: {
+        building: {
+            id: string;
+            name: string;
+            address: string;
+        };
+        unit: {
+            number: string;
+            id: string;
+            floor: number;
+        };
+        assignedTo: {
             id: string;
             name: string;
             email: string;
+            phone: string;
         };
     } & {
         id: string;
@@ -58,28 +72,37 @@ export declare class TicketsService {
         updatedAt: Date;
         status: import(".prisma/client").$Enums.TicketStatus;
         userId: string;
+        buildingId: string;
+        unitId: string | null;
         title: string;
         description: string;
+        priority: import(".prisma/client").$Enums.Priority;
+        category: string;
         photos: string[];
-        assignedTo: string | null;
+        assignedToId: string | null;
     })[]>;
     findOne(id: string, userId: string, userRole: UserRole): Promise<{
         user: {
             id: string;
             name: string;
-            building: {
-                id: string;
-                name: string;
-                address: string;
-                city: string;
-                createdAt: Date;
-            };
             email: string;
+            phone: string;
         };
-        assignedUser: {
+        building: {
+            id: string;
+            name: string;
+            address: string;
+        };
+        unit: {
+            number: string;
+            id: string;
+            floor: number;
+        };
+        assignedTo: {
             id: string;
             name: string;
             email: string;
+            phone: string;
         };
     } & {
         id: string;
@@ -87,28 +110,37 @@ export declare class TicketsService {
         updatedAt: Date;
         status: import(".prisma/client").$Enums.TicketStatus;
         userId: string;
+        buildingId: string;
+        unitId: string | null;
         title: string;
         description: string;
+        priority: import(".prisma/client").$Enums.Priority;
+        category: string;
         photos: string[];
-        assignedTo: string | null;
+        assignedToId: string | null;
     }>;
     update(id: string, updateTicketDto: UpdateTicketDto, userId: string, userRole: UserRole): Promise<{
         user: {
             id: string;
             name: string;
-            building: {
-                id: string;
-                name: string;
-                address: string;
-                city: string;
-                createdAt: Date;
-            };
             email: string;
+            phone: string;
         };
-        assignedUser: {
+        building: {
+            id: string;
+            name: string;
+            address: string;
+        };
+        unit: {
+            number: string;
+            id: string;
+            floor: number;
+        };
+        assignedTo: {
             id: string;
             name: string;
             email: string;
+            phone: string;
         };
     } & {
         id: string;
@@ -116,10 +148,14 @@ export declare class TicketsService {
         updatedAt: Date;
         status: import(".prisma/client").$Enums.TicketStatus;
         userId: string;
+        buildingId: string;
+        unitId: string | null;
         title: string;
         description: string;
+        priority: import(".prisma/client").$Enums.Priority;
+        category: string;
         photos: string[];
-        assignedTo: string | null;
+        assignedToId: string | null;
     }>;
     remove(id: string, userId: string, userRole: UserRole): Promise<{
         id: string;
@@ -127,28 +163,37 @@ export declare class TicketsService {
         updatedAt: Date;
         status: import(".prisma/client").$Enums.TicketStatus;
         userId: string;
+        buildingId: string;
+        unitId: string | null;
         title: string;
         description: string;
+        priority: import(".prisma/client").$Enums.Priority;
+        category: string;
         photos: string[];
-        assignedTo: string | null;
+        assignedToId: string | null;
     }>;
     assignToMe(id: string, userId: string): Promise<{
         user: {
             id: string;
             name: string;
-            building: {
-                id: string;
-                name: string;
-                address: string;
-                city: string;
-                createdAt: Date;
-            };
             email: string;
+            phone: string;
         };
-        assignedUser: {
+        building: {
+            id: string;
+            name: string;
+            address: string;
+        };
+        unit: {
+            number: string;
+            id: string;
+            floor: number;
+        };
+        assignedTo: {
             id: string;
             name: string;
             email: string;
+            phone: string;
         };
     } & {
         id: string;
@@ -156,28 +201,37 @@ export declare class TicketsService {
         updatedAt: Date;
         status: import(".prisma/client").$Enums.TicketStatus;
         userId: string;
+        buildingId: string;
+        unitId: string | null;
         title: string;
         description: string;
+        priority: import(".prisma/client").$Enums.Priority;
+        category: string;
         photos: string[];
-        assignedTo: string | null;
+        assignedToId: string | null;
     }>;
-    addPhoto(id: string, photoUrl: string, userId: string): Promise<{
+    completeTicket(id: string, userId: string, userRole: UserRole): Promise<{
         user: {
             id: string;
             name: string;
-            building: {
-                id: string;
-                name: string;
-                address: string;
-                city: string;
-                createdAt: Date;
-            };
             email: string;
+            phone: string;
         };
-        assignedUser: {
+        building: {
+            id: string;
+            name: string;
+            address: string;
+        };
+        unit: {
+            number: string;
+            id: string;
+            floor: number;
+        };
+        assignedTo: {
             id: string;
             name: string;
             email: string;
+            phone: string;
         };
     } & {
         id: string;
@@ -185,16 +239,59 @@ export declare class TicketsService {
         updatedAt: Date;
         status: import(".prisma/client").$Enums.TicketStatus;
         userId: string;
+        buildingId: string;
+        unitId: string | null;
         title: string;
         description: string;
+        priority: import(".prisma/client").$Enums.Priority;
+        category: string;
         photos: string[];
-        assignedTo: string | null;
+        assignedToId: string | null;
     }>;
-    getStats(): Promise<{
+    addPhoto(id: string, photoUrl: string, userId: string, userRole: UserRole): Promise<{
+        user: {
+            id: string;
+            name: string;
+            email: string;
+            phone: string;
+        };
+        building: {
+            id: string;
+            name: string;
+            address: string;
+        };
+        unit: {
+            number: string;
+            id: string;
+            floor: number;
+        };
+        assignedTo: {
+            id: string;
+            name: string;
+            email: string;
+            phone: string;
+        };
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        status: import(".prisma/client").$Enums.TicketStatus;
+        userId: string;
+        buildingId: string;
+        unitId: string | null;
+        title: string;
+        description: string;
+        priority: import(".prisma/client").$Enums.Priority;
+        category: string;
+        photos: string[];
+        assignedToId: string | null;
+    }>;
+    getStats(userId: string, userRole: UserRole, buildingId?: string): Promise<{
         total: number;
         open: number;
         inProgress: number;
         resolved: number;
         resolvedPercentage: number;
     }>;
+    private verifyTicketAccess;
 }

@@ -6,7 +6,7 @@ import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { UserRole } from '../common/types';
+import { UserRole } from '../common/enums/user-role.enum';
 
 @ApiTags('expenses')
 @Controller('expenses')

@@ -1,3 +1,4 @@
+// prisma/schema.prisma - CORREGIDO
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,27 +9,84 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(uuid())
-  name         String
-  email        String    @unique
-  passwordHash String
-  role         UserRole
-  buildingId   String?
-  building     Building? @relation(fields: [buildingId], references: [id])
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id              String    @id @default(uuid())
+  name            String
+  email           String    @unique
+  passwordHash    String
+  role            UserRole
+  phone           String?
+  avatar          String?
+  isActive        Boolean   @default(true)
+  emailVerified   Boolean   @default(false)
+  lastLogin       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  // Relaciones
-  expenses        Expense[]
+  // Relaciones de SaaS
+  subscription    Subscription?
+  ownedBuildings  Building[]  @relation("BuildingOwner")
+  managedUnits    Unit[]      @relation("UnitManager")
+  
+  // Relaciones existentes (mejoradas) - CORREGIDAS
+  expenses        Expense[]    @relation("ExpenseUser")
   payments        Payment[]
-  tickets         Ticket[]       @relation("TicketOwner")
-  assignedTickets Ticket[]       @relation("TicketAssignee")
-  assignedTasks   Task[]         @relation("AssignedTasks")
-  createdTasks    Task[]         @relation("CreatedTasks")
+  tickets         Ticket[]     @relation("TicketReporter")
+  assignedTickets Ticket[]     @relation("TicketAssignee")
+  assignedTasks   Task[]       @relation("TaskAssignee")
+  createdTasks    Task[]       @relation("TaskCreator")
   refreshTokens   RefreshToken[]
   files           File[]
 
   @@map("users")
+}
+
+model Subscription {
+  id                    String   @id @default(uuid())
+  plan                  PlanType @default(STARTER)
+  status                SubscriptionStatus @default(ACTIVE)
+  stripeSubscriptionId  String?
+  stripeCustomerId      String?
+  currentPeriodStart    DateTime?
+  currentPeriodEnd      DateTime?
+  cancelAtPeriodEnd     Boolean  @default(false)
+  
+  // Límites del plan
+  maxBuildings          Int      @default(1)
+  maxUsers              Int      @default(10)
+  features              Json     @default("{}")
+  
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("subscriptions")
+}
+
+model Unit {
+  id          String   @id @default(uuid())
+  number      String
+  floor       Int
+  type        UnitType @default(APARTMENT)
+  area        Float
+  bedrooms    Int?
+  bathrooms   Int?
+  isOccupied  Boolean  @default(false)
+  features    String[]
+
+  buildingId  String
+  building    Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  
+  // Relaciones mejoradas
+  managerId   String?
+  manager     User?    @relation("UnitManager", fields: [managerId], references: [id])
+  expenses    Expense[]
+  payments    Payment[]
+  tickets     Ticket[]  @relation("TicketUnit") // RELACIÓN AÑADIDA
+
+  @@unique([buildingId, number])
+  @@map("units")
 }
 
 model Building {
@@ -36,43 +94,64 @@ model Building {
   name      String
   address   String
   city      String
+  settings  Json     @default("{}")
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  // Relaciones
-  users    User[]
-  expenses Expense[]
+  // Relaciones mejoradas
+  ownerId   String
+  owner     User     @relation("BuildingOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  units     Unit[]
+  expenses  Expense[]
+  tickets   Ticket[]
+  tasks     Task[]    @relation("TaskBuilding") // RELACIÓN AÑADIDA
 
   @@map("buildings")
 }
 
 model Expense {
-  id         String        @id @default(uuid())
-  concept    String
-  amount     Float
-  dueDate    DateTime
-  status     ExpenseStatus @default(OPEN)
-  buildingId String
-  building   Building      @relation(fields: [buildingId], references: [id])
-  createdAt  DateTime      @default(now())
+  id          String        @id @default(uuid())
+  concept     String
+  amount      Float
+  dueDate     DateTime
+  period      String?
+  type        ExpenseType   @default(ORDINARY)
+  status      ExpenseStatus @default(OPEN)
+  
+  buildingId  String
+  building    Building      @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  
+  // Relaciones mejoradas - CORREGIDAS
+  unitId      String?
+  unit        Unit?         @relation(fields: [unitId], references: [id])
+  userId      String?
+  user        User?         @relation("ExpenseUser", fields: [userId], references: [id]) // RELACIÓN AÑADIDA
+  payments    Payment[]
 
-  // Relaciones
-  payments Payment[]
-  user     User?     @relation(fields: [userId], references: [id])
-  userId   String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   @@map("expenses")
 }
 
 model Payment {
-  id         String   @id @default(uuid())
-  amount     Float
-  date       DateTime @default(now())
-  method     String
-  expenseId  String
-  expense    Expense  @relation(fields: [expenseId], references: [id])
-  userId     String
-  user       User     @relation(fields: [userId], references: [id])
-  receiptUrl String?
+  id          String        @id @default(uuid())
+  amount      Float
+  date        DateTime      @default(now())
+  method      PaymentMethod
+  status      PaymentStatus @default(PENDING)
+  transactionId String?
+  receiptUrl  String?
+  
+  expenseId   String
+  expense     Expense       @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  
+  unitId      String
+  unit        Unit          @relation(fields: [unitId], references: [id])
 
   @@map("payments")
 }
@@ -81,11 +160,22 @@ model Ticket {
   id           String       @id @default(uuid())
   title        String
   description  String
+  priority     Priority     @default(MEDIUM)
   status       TicketStatus @default(OPEN)
+  category     String
+  
   userId       String
-  user         User         @relation("TicketOwner", fields: [userId], references: [id])
-  assignedTo   String?
-  assignedUser User?        @relation("TicketAssignee", fields: [assignedTo], references: [id])
+  user         User         @relation("TicketReporter", fields: [userId], references: [id])
+  
+  assignedToId String?
+  assignedTo   User?        @relation("TicketAssignee", fields: [assignedToId], references: [id])
+  
+  buildingId   String
+  building     Building     @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  
+  unitId       String?
+  unit         Unit?        @relation("TicketUnit", fields: [unitId], references: [id]) // RELACIÓN CORREGIDA
+  
   photos       String[]
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
@@ -97,13 +187,20 @@ model Task {
   id           String     @id @default(uuid())
   title        String
   description  String
+  priority     Priority   @default(MEDIUM)
   status       TaskStatus @default(PENDING)
-  assignedTo   String
-  assignedUser User       @relation("AssignedTasks", fields: [assignedTo], references: [id])
-  createdBy    String
-  createdUser  User       @relation("CreatedTasks", fields: [createdBy], references: [id])
-  photos       String[]
   dueDate      DateTime?
+  
+  assignedToId String
+  assignedTo   User       @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  
+  createdById  String
+  createdBy    User       @relation("TaskCreator", fields: [createdById], references: [id])
+  
+  buildingId   String
+  building     Building   @relation("TaskBuilding", fields: [buildingId], references: [id], onDelete: Cascade) // RELACIÓN CORREGIDA
+  
+  photos       String[]
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
@@ -134,22 +231,75 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
+// ENUMS (sin cambios)
 enum UserRole {
+  SUPER_ADMIN
   ADMIN
   MAINTENANCE
   RESIDENT
 }
 
+enum PlanType {
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  EXPIRED
+  PAST_DUE
+}
+
+enum UnitType {
+  APARTMENT
+  OFFICE
+  COMMERCIAL
+  STORAGE
+}
+
+enum ExpenseType {
+  ORDINARY
+  EXTRAORDINARY
+  FUND
+  SPECIAL
+}
+
 enum ExpenseStatus {
+  DRAFT
   OPEN
   PAID
   OVERDUE
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  CARD
+  MERCADOPAGO
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
 }
 
 enum TicketStatus {
   OPEN
   IN_PROGRESS
   RESOLVED
+  CANCELLED
 }
 
 enum TaskStatus {

@@ -6,7 +6,7 @@ import { UpdateBuildingDto } from './dto/update-building.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { UserRole } from '../common/types';
+import { UserRole} from '../common/enums/user-role.enum';
 
 @ApiTags('buildings')
 @Controller('buildings')
@@ -18,33 +18,44 @@ export class BuildingsController {
   @Post()
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Create a new building' })
-  create(@Body() createBuildingDto: CreateBuildingDto) {
-    return this.buildingsService.create(createBuildingDto);
+  create(@Body() createBuildingDto: CreateBuildingDto, @Param('userId') userId: string) {
+    return this.buildingsService.create(createBuildingDto, userId);
   }
 
   @Get()
   @ApiOperation({ summary: 'Get all buildings' })
-  findAll() {
-    return this.buildingsService.findAll();
+  findAll(@Param('userId') userId: string, @Param('userRole') userRole: string) {
+    return this.buildingsService.findAll(userId, userRole);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get building by ID' })
-  findOne(@Param('id') id: string) {
-    return this.buildingsService.findOne(id);
+  findOne(
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+    @Param('userRole') userRole: string
+  ) {
+    return this.buildingsService.findOne(id, userId, userRole);
   }
 
   @Patch(':id')
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Update building' })
-  update(@Param('id') id: string, @Body() updateBuildingDto: UpdateBuildingDto) {
-    return this.buildingsService.update(id, updateBuildingDto);
+  update(
+    @Param('id') id: string,
+    @Body() updateBuildingDto: UpdateBuildingDto,
+    @Param('userId') userId: string
+  ) {
+    return this.buildingsService.update(id, updateBuildingDto, userId);
   }
 
   @Delete(':id')
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Delete building' })
-  remove(@Param('id') id: string) {
-    return this.buildingsService.remove(id);
+  remove(
+    @Param('id') id: string,
+    @Param('userId') userId: string
+  ) {
+    return this.buildingsService.remove(id, userId);
   }
 }

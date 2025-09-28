@@ -1,5 +1,7 @@
-import { IsString, IsNotEmpty, IsOptional, IsArray, IsDateString } from 'class-validator';
+
+import { IsString, IsNotEmpty, IsOptional, IsArray, IsDateString, IsEnum } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { Priority, TaskStatus } from '@prisma/client';
 
 export class CreateTaskDto {
   @ApiProperty({ example: 'Reparar ascensor' })
@@ -16,6 +18,21 @@ export class CreateTaskDto {
   @IsString()
   @IsNotEmpty()
   assignedTo: string;
+
+  @ApiProperty({ example: 'building-id' })
+  @IsString()
+  @IsNotEmpty()
+  buildingId: string; // AGREGAR buildingId requerido
+
+  @ApiProperty({ enum: Priority, example: Priority.MEDIUM })
+  @IsEnum(Priority)
+  @IsOptional()
+  priority?: Priority;
+
+  @ApiProperty({ enum: TaskStatus, example: TaskStatus.PENDING, required: false })
+  @IsEnum(TaskStatus)
+  @IsOptional()
+  status?: TaskStatus;
 
   @ApiProperty({ example: '2024-01-20', required: false })
   @IsDateString()

@@ -1,3 +1,4 @@
+
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { TasksService } from './tasks.service';
@@ -6,17 +7,18 @@ import { UpdateTaskDto } from './dto/update-task.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { UserRole } from '../common/types';
+import { UserRole } from '../common/enums/user-role.enum';
 
 @ApiTags('tasks')
 @Controller('tasks')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
+
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
   @Post()
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN) // AHORA compatible
   @ApiOperation({ summary: 'Create a new task (Admin only)' })
   create(@Body() createTaskDto: CreateTaskDto, @Req() req: any) {
     return this.tasksService.create(createTaskDto, req.user.id);
@@ -41,16 +43,23 @@ export class TasksController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN) // AHORA compatible
   @ApiOperation({ summary: 'Delete task (Admin only)' })
   remove(@Param('id') id: string, @Req() req: any) {
-    return this.tasksService.remove(id, req.user.id);
+    return this.tasksService.remove(id, req.user.id, req.user.role);
   }
 
   @Post(':id/photos')
-  @Roles(UserRole.MAINTENANCE)
+  @Roles(UserRole.MAINTENANCE) // AHORA compatible
   @ApiOperation({ summary: 'Add photo to task (Maintenance only)' })
   addPhoto(@Param('id') id: string, @Body('photoUrl') photoUrl: string, @Req() req: any) {
-    return this.tasksService.addPhoto(id, photoUrl, req.user.id);
+    return this.tasksService.addPhoto(id, photoUrl, req.user.id, req.user.role);
+  }
+
+  @Post(':id/complete')
+  @Roles(UserRole.MAINTENANCE, UserRole.ADMIN) // AHORA compatible
+  @ApiOperation({ summary: 'Mark task as completed' })
+  completeTask(@Param('id') id: string, @Req() req: any) {
+    return this.tasksService.completeTask(id, req.user.id, req.user.role);
   }
 }

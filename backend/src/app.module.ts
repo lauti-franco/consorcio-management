@@ -1,3 +1,4 @@
+// src/app.module.ts
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MulterModule } from '@nestjs/platform-express';
@@ -13,6 +14,9 @@ import { TicketsModule } from './tickets/tickets.module';
 import { TasksModule } from './tasks/tasks.module';
 import { FilesModule } from './files/files.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { UnitsModule } from './units/units.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -43,6 +47,9 @@ import { PrismaModule } from './prisma/prisma.module';
     TicketsModule,
     TasksModule,
     FilesModule,
+    SubscriptionsModule,
+    UnitsModule,
+    DashboardModule,
   ],
 })
 export class AppModule {}

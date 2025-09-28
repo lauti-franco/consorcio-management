@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateTicketDto = void 0;
 const class_validator_1 = require("class-validator");
 const swagger_1 = require("@nestjs/swagger");
+const client_1 = require("@prisma/client");
 class CreateTicketDto {
 }
 exports.CreateTicketDto = CreateTicketDto;
@@ -27,6 +28,36 @@ __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreateTicketDto.prototype, "description", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ enum: client_1.Priority, example: client_1.Priority.MEDIUM }),
+    (0, class_validator_1.IsEnum)(client_1.Priority),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateTicketDto.prototype, "priority", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'PLUMBING' }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CreateTicketDto.prototype, "category", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'building-id' }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CreateTicketDto.prototype, "buildingId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'unit-id', required: false }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateTicketDto.prototype, "unitId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'user-id', required: false }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateTicketDto.prototype, "assignedTo", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ example: [], required: false }),
     (0, class_validator_1.IsArray)(),

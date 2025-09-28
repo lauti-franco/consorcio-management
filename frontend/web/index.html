@@ -1,27 +1,1095 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Consorcio Management</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <!-- REMOVER CSP temporalmente para desarrollo -->
-    <!-- <meta http-equiv="Content-Security-Policy" content="..."> -->
+    <title>Consorcio Management Pro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --accent: #e74c3c;
+            --light: #ecf0f1;
+            --dark: #2c3e50;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --gray: #95a5a6;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --radius: 8px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Login Screen */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        }
+
+        .login-box {
+            background: white;
+            border-radius: var(--radius);
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-header h1 {
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .login-header p {
+            color: var(--gray);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: var(--radius);
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+
+        .form-control:focus {
+            border-color: var(--secondary);
+            outline: none;
+        }
+
+        .role-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .role-option {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .role-option.selected {
+            border-color: var(--secondary);
+            background-color: rgba(52, 152, 219, 0.1);
+        }
+
+        .role-option i {
+            display: block;
+            font-size: 24px;
+            margin-bottom: 5px;
+            color: var(--secondary);
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background: var(--secondary);
+            color: white;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: #2980b9;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background: var(--primary);
+            color: white;
+            transition: all 0.3s;
+            box-shadow: var(--shadow);
+            z-index: 1000;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar-header h2 {
+            font-size: 1.5rem;
+        }
+
+        .user-info-sidebar {
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .user-details {
+            flex: 1;
+        }
+
+        .user-name {
+            font-weight: 600;
+        }
+
+        .user-role {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        .sidebar-menu {
+            padding: 15px 0;
+        }
+
+        .menu-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 4px solid transparent;
+        }
+
+        .menu-item:hover, .menu-item.active {
+            background: rgba(255, 255, 255, 0.1);
+            border-left: 4px solid var(--secondary);
+        }
+
+        .menu-item i {
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .header h1 {
+            color: var(--primary);
+            font-size: 1.8rem;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .notification-icon {
+            position: relative;
+            cursor: pointer;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: var(--danger);
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .user-info-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Dashboard Cards */
+        .dashboard-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            color: var(--gray);
+        }
+
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .card-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .card-change {
+            font-size: 0.8rem;
+        }
+
+        .positive {
+            color: var(--success);
+        }
+
+        .negative {
+            color: var(--danger);
+        }
+
+        /* Modules Section */
+        .modules-section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .modules-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .module-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            transition: all 0.3s;
+            cursor: pointer;
+            border-left: 4px solid var(--secondary);
+        }
+
+        .module-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .module-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+            color: var(--secondary);
+            font-size: 1.5rem;
+        }
+
+        .module-title {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+
+        .module-description {
+            color: var(--gray);
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+
+        .module-status {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        /* Recent Activity */
+        .activity-list {
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .activity-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .activity-content {
+            flex: 1;
+        }
+
+        .activity-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .activity-time {
+            font-size: 0.8rem;
+            color: var(--gray);
+        }
+
+        /* Table Styles */
+        .table-container {
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .table-header {
+            padding: 15px 20px;
+            background: var(--light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        /* Form Styles */
+        .form-container {
+            background: white;
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .form-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            flex: 1;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: auto;
+            }
+            
+            .dashboard-cards {
+                grid-template-columns: 1fr;
+            }
+            
+            .modules-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-row {
+                flex-direction: column;
+                gap: 0;
+            }
+        }
+
+        /* Role-specific styles */
+        .role-admin .sidebar {
+            background: var(--primary);
+        }
+
+        .role-resident .sidebar {
+            background: #27ae60;
+        }
+
+        .role-maintenance .sidebar {
+            background: #f39c12;
+        }
+
+        .panel {
+            display: none;
+        }
+
+        .panel.active {
+            display: block;
+        }
+    </style>
 </head>
 <body>
+    <!-- Login Screen -->
+    <div id="login-screen" class="login-container">
+        <div class="login-box">
+            <div class="login-header">
+                <h1>Consorcio Management Pro</h1>
+                <p>Inicie sesión con su cuenta</p>
+            </div>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="username">Usuario</label>
+                    <input type="text" id="username" class="form-control" placeholder="Ingrese su usuario" value="admin">
+                </div>
+                <div class="form-group">
+                    <label for="password">Contraseña</label>
+                    <input type="password" id="password" class="form-control" placeholder="Ingrese su contraseña" value="password">
+                </div>
+                <div class="role-selector">
+                    <div class="role-option selected" data-role="admin">
+                        <i class="fas fa-user-cog"></i>
+                        <span>Administrador</span>
+                    </div>
+                    <div class="role-option" data-role="resident">
+                        <i class="fas fa-user"></i>
+                        <span>Residente</span>
+                    </div>
+                    <div class="role-option" data-role="maintenance">
+                        <i class="fas fa-tools"></i>
+                        <span>Mantenimiento</span>
+                    </div>
+                </div>
+                <button type="submit" class="btn">Iniciar Sesión</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="app" class="container" style="display: none;">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <i class="fas fa-building"></i>
+                <h2>Consorcio Pro</h2>
+            </div>
+            <div class="user-info-sidebar">
+                <div class="user-avatar" id="user-avatar">A</div>
+                <div class="user-details">
+                    <div class="user-name" id="user-name">Administrador</div>
+                    <div class="user-role" id="user-role">Administrador</div>
+                </div>
+            </div>
+            <div class="sidebar-menu" id="sidebar-menu">
+                <!-- Menu items will be populated by JavaScript based on role -->
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="header">
+                <h1 id="page-title">Dashboard del Consorcio</h1>
+                <div class="header-actions">
+                    <div class="notification-icon">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge">3</span>
+                    </div>
+                    <div class="user-info-header">
+                        <div class="user-avatar" id="header-user-avatar">A</div>
+                        <span id="header-user-name">Administrador</span>
+                        <button id="logout-btn" class="btn" style="width: auto; padding: 8px 15px; margin-left: 10px;">
+                            <i class="fas fa-sign-out-alt"></i> Salir
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Panel -->
+            <div id="admin-panel" class="panel">
+                <!-- Dashboard Cards -->
+                <div class="dashboard-cards">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Propietarios Activos</div>
+                            <div class="card-icon" style="background: var(--secondary);">
+                                <i class="fas fa-users"></i>
+                            </div>
+                        </div>
+                        <div class="card-value">24</div>
+                        <div class="card-change positive">+2 este mes</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Expensas Cobradas</div>
+                            <div class="card-icon" style="background: var(--success);">
+                                <i class="fas fa-dollar-sign"></i>
+                            </div>
+                        </div>
+                        <div class="card-value">$85,430</div>
+                        <div class="card-change positive">92% del total</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Gastos del Mes</div>
+                            <div class="card-icon" style="background: var(--warning);">
+                                <i class="fas fa-chart-pie"></i>
+                            </div>
+                        </div>
+                        <div class="card-value">$42,150</div>
+                        <div class="card-change negative">+5% vs mes anterior</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Tickets Abiertos</div>
+                            <div class="card-icon" style="background: var(--danger);">
+                                <i class="fas fa-tools"></i>
+                            </div>
+                        </div>
+                        <div class="card-value">7</div>
+                        <div class="card-change negative">+2 esta semana</div>
+                    </div>
+                </div>
+
+                <!-- Propietarios Section -->
+                <div class="modules-section" id="propietarios-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-users"></i>
+                        Gestión de Propietarios
+                    </h2>
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3>Lista de Propietarios</h3>
+                            <button class="btn" style="width: auto; padding: 8px 15px;">
+                                <i class="fas fa-plus"></i> Agregar Propietario
+                            </button>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Departamento</th>
+                                    <th>Teléfono</th>
+                                    <th>Email</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>María González</td>
+                                    <td>4B</td>
+                                    <td>11-2345-6789</td>
+                                    <td>maria.gonzalez@email.com</td>
+                                    <td><span class="badge badge-success">Al día</span></td>
+                                    <td>
+                                        <i class="fas fa-edit" style="color: var(--secondary); cursor: pointer;"></i>
+                                        <i class="fas fa-trash" style="color: var(--danger); margin-left: 10px; cursor: pointer;"></i>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Carlos López</td>
+                                    <td>7C</td>
+                                    <td>11-3456-7890</td>
+                                    <td>carlos.lopez@email.com</td>
+                                    <td><span class="badge badge-success">Al día</span></td>
+                                    <td>
+                                        <i class="fas fa-edit" style="color: var(--secondary); cursor: pointer;"></i>
+                                        <i class="fas fa-trash" style="color: var(--danger); margin-left: 10px; cursor: pointer;"></i>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Ana Martínez</td>
+                                    <td>2A</td>
+                                    <td>11-4567-8901</td>
+                                    <td>ana.martinez@email.com</td>
+                                    <td><span class="badge badge-danger">Moroso</span></td>
+                                    <td>
+                                        <i class="fas fa-edit" style="color: var(--secondary); cursor: pointer;"></i>
+                                        <i class="fas fa-trash" style="color: var(--danger); margin-left: 10px; cursor: pointer;"></i>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resident Panel -->
+            <div id="resident-panel" class="panel">
+                <div class="dashboard-cards">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Mi Saldo Actual</div>
+                            <div class="card-icon" style="background: var(--success);">
+                                <i class="fas fa-dollar-sign"></i>
+                            </div>
+                        </div>
+                        <div class="card-value">$5,240</div>
+                        <div class="card-change positive">Al día</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Próxima Expensa</div>
+                            <div class="card-icon" style="background: var(--warning);">
+                                <i class="fas fa-calendar-alt"></i>
+                            </div>
+                        </div>
+                        <div class="card-value">15 Agosto</div>
+                        <div class="card-change">Vence el 05/09</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Tickets Activos</div>
+                            <div class="card-icon" style="background: var(--secondary);">
+                                <i class="fas fa-tools"></i>
+                            </div>
+                        </div>
+                        <div class="card-value">2</div>
+                        <div class="card-change">1 en proceso</div>
+                    </div>
+                </div>
+
+                <div class="modules-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                        Mis Expensas
+                    </h2>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Período</th>
+                                    <th>Monto</th>
+                                    <th>Vencimiento</th>
+                                    <th>Estado</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Agosto 2023</td>
+                                    <td>$24,500</td>
+                                    <td>05/09/2023</td>
+                                    <td><span class="badge badge-warning">Pendiente</span></td>
+                                    <td><button class="btn" style="width: auto; padding: 5px 10px; font-size: 0.8rem;">Pagar</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Julio 2023</td>
+                                    <td>$24,000</td>
+                                    <td>05/08/2023</td>
+                                    <td><span class="badge badge-success">Pagado</span></td>
+                                    <td><button class="btn" style="width: auto; padding: 5px 10px; font-size: 0.8rem;" disabled>Descargar</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Junio 2023</td>
+                                    <td>$23,800</td>
+                                    <td>05/07/2023</td>
+                                    <td><span class="badge badge-success">Pagado</span></td>
+                                    <td><button class="btn" style="width: auto; padding: 5px 10px; font-size: 0.8rem;" disabled>Descargar</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Maintenance Panel -->
+            <div id="maintenance-panel" class="panel">
+                <div class="dashboard-cards">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Tickets Activos</div>
+                            <div class="card-icon" style="background: var(--warning);">
+                                <i class="fas fa-tools"></i>
+                            </div>
+                        </div>
+                        <div class="card-value">7</div>
+                        <div class="card-change negative">+2 esta semana</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">En Proceso</div>
+                            <div class="card-icon" style="background: var(--secondary);">
+                                <i class="fas fa-hourglass-half"></i>
+                            </div>
+                        </div>
+                        <div class="card-value">3</div>
+                        <div class="card-change">Sin cambios</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Completados</div>
+                            <div class="card-icon" style="background: var(--success);">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                        </div>
+                        <div class="card-value">12</div>
+                        <div class="card-change positive">Este mes</div>
+                    </div>
+                </div>
+
+                <div class="modules-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-clipboard-list"></i>
+                        Tickets de Mantenimiento
+                    </h2>
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3>Tickets Activos</h3>
+                            <button class="btn" style="width: auto; padding: 8px 15px;">
+                                <i class="fas fa-plus"></i> Nuevo Ticket
+                            </button>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Departamento</th>
+                                    <th>Problema</th>
+                                    <th>Fecha</th>
+                                    <th>Prioridad</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>#1245</td>
+                                    <td>4B</td>
+                                    <td>Fuga de agua en baño</td>
+                                    <td>15/08/2023</td>
+                                    <td><span class="badge badge-danger">Alta</span></td>
+                                    <td><span class="badge badge-warning">En proceso</span></td>
+                                    <td>
+                                        <i class="fas fa-edit" style="color: var(--secondary); cursor: pointer;"></i>
+                                        <i class="fas fa-check" style="color: var(--success); margin-left: 10px; cursor: pointer;"></i>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>#1243</td>
+                                    <td>7C</td>
+                                    <td>Luz de pasillo no funciona</td>
+                                    <td>12/08/2023</td>
+                                    <td><span class="badge badge-warning">Media</span></td>
+                                    <td><span class="badge badge-warning">En proceso</span></td>
+                                    <td>
+                                        <i class="fas fa-edit" style="color: var(--secondary); cursor: pointer;"></i>
+                                        <i class="fas fa-check" style="color: var(--success); margin-left: 10px; cursor: pointer;"></i>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>#1240</td>
+                                    <td>2A</td>
+                                    <td>Problema con persiana</td>
+                                    <td>10/08/2023</td>
+                                    <td><span class="badge badge-success">Baja</span></td>
+                                    <td><span class="badge badge-success">Completado</span></td>
+                                    <td>
+                                        <i class="fas fa-edit" style="color: var(--secondary); cursor: pointer;"></i>
+                                        <i class="fas fa-check" style="color: var(--success); margin-left: 10px; cursor: pointer;"></i>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
-        console.log('🚀 Flutter Web iniciando...');
-        
-        // Manejo de errores global
-        window.addEventListener('error', (e) => {
-            console.error('💥 ERROR GLOBAL:', e.error);
+        // Datos de usuarios de ejemplo
+        const users = {
+            admin: { name: "Administrador", avatar: "A" },
+            resident: { name: "María González", avatar: "M" },
+            maintenance: { name: "Juan Pérez", avatar: "J" }
+        };
+
+        // Menús para cada rol
+        const menus = {
+            admin: [
+                { icon: "fas fa-tachometer-alt", text: "Dashboard", panel: "admin-panel" },
+                { icon: "fas fa-users", text: "Propietarios", panel: "admin-panel" },
+                { icon: "fas fa-file-invoice-dollar", text: "Expensas", panel: "admin-panel" },
+                { icon: "fas fa-tools", text: "Mantenimiento", panel: "admin-panel" },
+                { icon: "fas fa-chart-bar", text: "Reportes", panel: "admin-panel" },
+                { icon: "fas fa-cog", text: "Configuración", panel: "admin-panel" }
+            ],
+            resident: [
+                { icon: "fas fa-tachometer-alt", text: "Mi Dashboard", panel: "resident-panel" },
+                { icon: "fas fa-file-invoice-dollar", text: "Mis Expensas", panel: "resident-panel" },
+                { icon: "fas fa-tools", text: "Solicitar Mantenimiento", panel: "resident-panel" },
+                { icon: "fas fa-calendar-alt", text: "Reservas", panel: "resident-panel" },
+                { icon: "fas fa-comments", text: "Comunicados", panel: "resident-panel" }
+            ],
+            maintenance: [
+                { icon: "fas fa-tachometer-alt", text: "Dashboard", panel: "maintenance-panel" },
+                { icon: "fas fa-clipboard-list", text: "Tickets", panel: "maintenance-panel" },
+                { icon: "fas fa-tools", text: "Inventario", panel: "maintenance-panel" },
+                { icon: "fas fa-calendar", text: "Calendario", panel: "maintenance-panel" },
+                { icon: "fas fa-chart-bar", text: "Reportes", panel: "maintenance-panel" }
+            ]
+        };
+
+        // Estado de la aplicación
+        let currentUser = null;
+        let currentRole = "admin";
+
+        // Elementos DOM
+        const loginScreen = document.getElementById('login-screen');
+        const app = document.getElementById('app');
+        const loginForm = document.getElementById('login-form');
+        const roleOptions = document.querySelectorAll('.role-option');
+        const sidebarMenu = document.getElementById('sidebar-menu');
+        const userAvatar = document.getElementById('user-avatar');
+        const userName = document.getElementById('user-name');
+        const userRole = document.getElementById('user-role');
+        const headerUserAvatar = document.getElementById('header-user-avatar');
+        const headerUserName = document.getElementById('header-user-name');
+        const pageTitle = document.getElementById('page-title');
+        const logoutBtn = document.getElementById('logout-btn');
+        const panels = document.querySelectorAll('.panel');
+
+        // Selección de rol
+        roleOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                roleOptions.forEach(o => o.classList.remove('selected'));
+                this.classList.add('selected');
+                currentRole = this.getAttribute('data-role');
+            });
         });
-        
-        window.addEventListener('unhandledrejection', (e) => {
-            console.error('💥 PROMISE REJECTION:', e.reason);
+
+        // Login
+        loginForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Simular autenticación
+            currentUser = users[currentRole];
+            
+            // Actualizar interfaz según el rol
+            updateInterfaceForRole();
+            
+            // Mostrar aplicación y ocultar login
+            loginScreen.style.display = 'none';
+            app.style.display = 'flex';
+            
+            // Aplicar clase de rol al body
+            document.body.className = `role-${currentRole}`;
         });
+
+        // Logout
+        logoutBtn.addEventListener('click', function() {
+            // Mostrar login y ocultar aplicación
+            app.style.display = 'none';
+            loginScreen.style.display = 'flex';
+            
+            // Resetear clase de rol
+            document.body.className = '';
+        });
+
+        // Actualizar interfaz según el rol
+        function updateInterfaceForRole() {
+            // Actualizar información del usuario
+            userAvatar.textContent = currentUser.avatar;
+            userName.textContent = currentUser.name;
+            userRole.textContent = currentRole.charAt(0).toUpperCase() + currentRole.slice(1);
+            
+            headerUserAvatar.textContent = currentUser.avatar;
+            headerUserName.textContent = currentUser.name;
+            
+            // Actualizar menú
+            sidebarMenu.innerHTML = '';
+            menus[currentRole].forEach(item => {
+                const menuItem = document.createElement('div');
+                menuItem.className = 'menu-item';
+                menuItem.innerHTML = `
+                    <i class="${item.icon}"></i>
+                    <span>${item.text}</span>
+                `;
+                menuItem.addEventListener('click', function() {
+                    // Actualizar título de página
+                    pageTitle.textContent = `${item.text} del Consorcio`;
+                    
+                    // Marcar elemento activo
+                    document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Mostrar panel correspondiente
+                    showPanel(item.panel);
+                });
+                sidebarMenu.appendChild(menuItem);
+            });
+            
+            // Activar primer elemento del menú
+            const firstMenuItem = sidebarMenu.querySelector('.menu-item');
+            if (firstMenuItem) {
+                firstMenuItem.classList.add('active');
+                pageTitle.textContent = `${menus[currentRole][0].text} del Consorcio`;
+                showPanel(menus[currentRole][0].panel);
+            }
+        }
+
+        // Mostrar panel específico
+        function showPanel(panelId) {
+            panels.forEach(panel => {
+                panel.classList.remove('active');
+            });
+            document.getElementById(panelId).classList.add('active');
+        }
+
+        // Inicializar con el rol de administrador por defecto
+       
     </script>
-    
-    <script src="main.dart.js" type="application/javascript"></script>
 </body>
 </html>

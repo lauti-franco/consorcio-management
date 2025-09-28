@@ -1,7 +1,7 @@
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { ProcessPaymentDto } from './dto/process-payment.dto';
-import { UserRole } from '../common/types';
+import { UserRole } from '@prisma/client';
 export declare class PaymentsService {
     private prisma;
     constructor(prisma: PrismaService);
@@ -11,22 +11,69 @@ export declare class PaymentsService {
             name: string;
             email: string;
         };
+        unit: {
+            number: string;
+            id: string;
+            building: {
+                id: string;
+                name: string;
+                isActive: boolean;
+                createdAt: Date;
+                updatedAt: Date;
+                address: string;
+                city: string;
+                settings: import("@prisma/client/runtime/library").JsonValue;
+                ownerId: string;
+            };
+        };
         expense: {
+            building: {
+                id: string;
+                name: string;
+                isActive: boolean;
+                createdAt: Date;
+                updatedAt: Date;
+                address: string;
+                city: string;
+                settings: import("@prisma/client/runtime/library").JsonValue;
+                ownerId: string;
+            };
+            unit: {
+                number: string;
+                id: string;
+                features: string[];
+                floor: number;
+                type: import(".prisma/client").$Enums.UnitType;
+                area: number;
+                bedrooms: number | null;
+                bathrooms: number | null;
+                isOccupied: boolean;
+                buildingId: string;
+                managerId: string | null;
+            };
+        } & {
             id: string;
             createdAt: Date;
+            updatedAt: Date;
+            status: import(".prisma/client").$Enums.ExpenseStatus;
+            userId: string | null;
+            type: import(".prisma/client").$Enums.ExpenseType;
             buildingId: string;
             concept: string;
             amount: number;
             dueDate: Date;
-            status: import(".prisma/client").$Enums.ExpenseStatus;
-            userId: string | null;
+            period: string | null;
+            unitId: string | null;
         };
     } & {
         id: string;
-        amount: number;
+        status: import(".prisma/client").$Enums.PaymentStatus;
         userId: string;
+        amount: number;
+        unitId: string;
         date: Date;
-        method: string;
+        method: import(".prisma/client").$Enums.PaymentMethod;
+        transactionId: string | null;
         receiptUrl: string | null;
         expenseId: string;
     }>;
@@ -36,30 +83,69 @@ export declare class PaymentsService {
             name: string;
             email: string;
         };
+        unit: {
+            number: string;
+            id: string;
+            building: {
+                id: string;
+                name: string;
+                isActive: boolean;
+                createdAt: Date;
+                updatedAt: Date;
+                address: string;
+                city: string;
+                settings: import("@prisma/client/runtime/library").JsonValue;
+                ownerId: string;
+            };
+        };
         expense: {
             building: {
                 id: string;
                 name: string;
+                isActive: boolean;
+                createdAt: Date;
+                updatedAt: Date;
                 address: string;
                 city: string;
-                createdAt: Date;
+                settings: import("@prisma/client/runtime/library").JsonValue;
+                ownerId: string;
+            };
+            unit: {
+                number: string;
+                id: string;
+                features: string[];
+                floor: number;
+                type: import(".prisma/client").$Enums.UnitType;
+                area: number;
+                bedrooms: number | null;
+                bathrooms: number | null;
+                isOccupied: boolean;
+                buildingId: string;
+                managerId: string | null;
             };
         } & {
             id: string;
             createdAt: Date;
+            updatedAt: Date;
+            status: import(".prisma/client").$Enums.ExpenseStatus;
+            userId: string | null;
+            type: import(".prisma/client").$Enums.ExpenseType;
             buildingId: string;
             concept: string;
             amount: number;
             dueDate: Date;
-            status: import(".prisma/client").$Enums.ExpenseStatus;
-            userId: string | null;
+            period: string | null;
+            unitId: string | null;
         };
     } & {
         id: string;
-        amount: number;
+        status: import(".prisma/client").$Enums.PaymentStatus;
         userId: string;
+        amount: number;
+        unitId: string;
         date: Date;
-        method: string;
+        method: import(".prisma/client").$Enums.PaymentMethod;
+        transactionId: string | null;
         receiptUrl: string | null;
         expenseId: string;
     })[]>;
@@ -69,30 +155,69 @@ export declare class PaymentsService {
             name: string;
             email: string;
         };
+        unit: {
+            number: string;
+            id: string;
+            building: {
+                id: string;
+                name: string;
+                isActive: boolean;
+                createdAt: Date;
+                updatedAt: Date;
+                address: string;
+                city: string;
+                settings: import("@prisma/client/runtime/library").JsonValue;
+                ownerId: string;
+            };
+        };
         expense: {
             building: {
                 id: string;
                 name: string;
+                isActive: boolean;
+                createdAt: Date;
+                updatedAt: Date;
                 address: string;
                 city: string;
-                createdAt: Date;
+                settings: import("@prisma/client/runtime/library").JsonValue;
+                ownerId: string;
+            };
+            unit: {
+                number: string;
+                id: string;
+                features: string[];
+                floor: number;
+                type: import(".prisma/client").$Enums.UnitType;
+                area: number;
+                bedrooms: number | null;
+                bathrooms: number | null;
+                isOccupied: boolean;
+                buildingId: string;
+                managerId: string | null;
             };
         } & {
             id: string;
             createdAt: Date;
+            updatedAt: Date;
+            status: import(".prisma/client").$Enums.ExpenseStatus;
+            userId: string | null;
+            type: import(".prisma/client").$Enums.ExpenseType;
             buildingId: string;
             concept: string;
             amount: number;
             dueDate: Date;
-            status: import(".prisma/client").$Enums.ExpenseStatus;
-            userId: string | null;
+            period: string | null;
+            unitId: string | null;
         };
     } & {
         id: string;
-        amount: number;
+        status: import(".prisma/client").$Enums.PaymentStatus;
         userId: string;
+        amount: number;
+        unitId: string;
         date: Date;
-        method: string;
+        method: import(".prisma/client").$Enums.PaymentMethod;
+        transactionId: string | null;
         receiptUrl: string | null;
         expenseId: string;
     }>;
@@ -102,25 +227,78 @@ export declare class PaymentsService {
             name: string;
             email: string;
         };
+        unit: {
+            number: string;
+            id: string;
+            building: {
+                id: string;
+                name: string;
+                isActive: boolean;
+                createdAt: Date;
+                updatedAt: Date;
+                address: string;
+                city: string;
+                settings: import("@prisma/client/runtime/library").JsonValue;
+                ownerId: string;
+            };
+        };
         expense: {
+            building: {
+                id: string;
+                name: string;
+                isActive: boolean;
+                createdAt: Date;
+                updatedAt: Date;
+                address: string;
+                city: string;
+                settings: import("@prisma/client/runtime/library").JsonValue;
+                ownerId: string;
+            };
+            unit: {
+                number: string;
+                id: string;
+                features: string[];
+                floor: number;
+                type: import(".prisma/client").$Enums.UnitType;
+                area: number;
+                bedrooms: number | null;
+                bathrooms: number | null;
+                isOccupied: boolean;
+                buildingId: string;
+                managerId: string | null;
+            };
+        } & {
             id: string;
             createdAt: Date;
+            updatedAt: Date;
+            status: import(".prisma/client").$Enums.ExpenseStatus;
+            userId: string | null;
+            type: import(".prisma/client").$Enums.ExpenseType;
             buildingId: string;
             concept: string;
             amount: number;
             dueDate: Date;
-            status: import(".prisma/client").$Enums.ExpenseStatus;
-            userId: string | null;
+            period: string | null;
+            unitId: string | null;
         };
     } & {
         id: string;
-        amount: number;
+        status: import(".prisma/client").$Enums.PaymentStatus;
         userId: string;
+        amount: number;
+        unitId: string;
         date: Date;
-        method: string;
+        method: import(".prisma/client").$Enums.PaymentMethod;
+        transactionId: string | null;
         receiptUrl: string | null;
         expenseId: string;
     }>;
+    getPaymentStats(userId: string, userRole: UserRole, buildingId?: string): Promise<{
+        totalPayments: number;
+        totalAmount: number;
+        monthlyRevenue: number;
+    }>;
     private simulatePayment;
     private updateExpenseStatus;
+    private verifyPaymentAccess;
 }

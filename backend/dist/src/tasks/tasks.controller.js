@@ -21,7 +21,7 @@ const update_task_dto_1 = require("./dto/update-task.dto");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const roles_guard_1 = require("../common/guards/roles.guard");
 const roles_decorator_1 = require("../common/decorators/roles.decorator");
-const types_1 = require("../common/types");
+const user_role_enum_1 = require("../common/enums/user-role.enum");
 let TasksController = class TasksController {
     constructor(tasksService) {
         this.tasksService = tasksService;
@@ -39,16 +39,19 @@ let TasksController = class TasksController {
         return this.tasksService.update(id, updateTaskDto, req.user.id, req.user.role);
     }
     remove(id, req) {
-        return this.tasksService.remove(id, req.user.id);
+        return this.tasksService.remove(id, req.user.id, req.user.role);
     }
     addPhoto(id, photoUrl, req) {
-        return this.tasksService.addPhoto(id, photoUrl, req.user.id);
+        return this.tasksService.addPhoto(id, photoUrl, req.user.id, req.user.role);
+    }
+    completeTask(id, req) {
+        return this.tasksService.completeTask(id, req.user.id, req.user.role);
     }
 };
 exports.TasksController = TasksController;
 __decorate([
     (0, common_1.Post)(),
-    (0, roles_decorator_1.Roles)(types_1.UserRole.ADMIN),
+    (0, roles_decorator_1.Roles)(user_role_enum_1.UserRole.ADMIN),
     (0, swagger_1.ApiOperation)({ summary: 'Create a new task (Admin only)' }),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Req)()),
@@ -85,7 +88,7 @@ __decorate([
 ], TasksController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)(':id'),
-    (0, roles_decorator_1.Roles)(types_1.UserRole.ADMIN),
+    (0, roles_decorator_1.Roles)(user_role_enum_1.UserRole.ADMIN),
     (0, swagger_1.ApiOperation)({ summary: 'Delete task (Admin only)' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Req)()),
@@ -95,7 +98,7 @@ __decorate([
 ], TasksController.prototype, "remove", null);
 __decorate([
     (0, common_1.Post)(':id/photos'),
-    (0, roles_decorator_1.Roles)(types_1.UserRole.MAINTENANCE),
+    (0, roles_decorator_1.Roles)(user_role_enum_1.UserRole.MAINTENANCE),
     (0, swagger_1.ApiOperation)({ summary: 'Add photo to task (Maintenance only)' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)('photoUrl')),
@@ -104,6 +107,16 @@ __decorate([
     __metadata("design:paramtypes", [String, String, Object]),
     __metadata("design:returntype", void 0)
 ], TasksController.prototype, "addPhoto", null);
+__decorate([
+    (0, common_1.Post)(':id/complete'),
+    (0, roles_decorator_1.Roles)(user_role_enum_1.UserRole.MAINTENANCE, user_role_enum_1.UserRole.ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Mark task as completed' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], TasksController.prototype, "completeTask", null);
 exports.TasksController = TasksController = __decorate([
     (0, swagger_1.ApiTags)('tasks'),
     (0, common_1.Controller)('tasks'),

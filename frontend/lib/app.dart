@@ -1,4 +1,3 @@
-// lib/app.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
@@ -15,23 +14,25 @@ class ConsorcioApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-
-    return MaterialApp(
-      title: 'Consorcio App',
-      theme: themeProvider.currentTheme,
-      home: const AppWrapper(),
-      debugShowCheckedModeBanner: false,
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [
-        Locale('es', 'AR'),
-        Locale('en', 'US'),
-      ],
-      locale: const Locale('es', 'AR'),
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        return MaterialApp(
+          title: 'Consorcio App',
+          theme: themeProvider.currentTheme,
+          home: const AppWrapper(),
+          debugShowCheckedModeBanner: false,
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('es', 'AR'),
+            Locale('en', 'US'),
+          ],
+          locale: const Locale('es', 'AR'),
+        );
+      },
     );
   }
 }
@@ -51,36 +52,44 @@ class _AppWrapperState extends State<AppWrapper> {
   }
 
   Future<void> _initializeApp() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await authProvider.initialize();
+    // Usar WidgetsBinding para asegurar que el context esté disponible
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      await authProvider.initialize();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
+        // Mostrar splash screen mientras carga
+        if (authProvider.isLoading) {
+          return const SplashScreen();
+        }
 
-    // Mostrar splash screen mientras carga
-    if (authProvider.isLoading) {
-      return const SplashScreen();
-    }
+        // Mostrar login si no está autenticado
+        if (!authProvider.isAuthenticated) {
+          return const LoginScreen();
+        }
 
-    // Mostrar login si no está autenticado
-    if (!authProvider.isAuthenticated) {
-      return const LoginScreen();
-    }
-
-    // Redirigir según el rol
-    return _buildDashboardByRole(authProvider.user?.role);
+        // Redirigir según el rol - CORREGIR VALORES DEL ENUM
+        return _buildDashboardByRole(authProvider.user?.role);
+      },
+    );
   }
 
   Widget _buildDashboardByRole(String? role) {
-    switch (role) {
+    // Usar los valores exactos del enum de tu backend
+    switch (role?.toUpperCase()) {
       case 'ADMIN':
         return const AdminDashboard();
       case 'MAINTENANCE':
         return const MaintenanceDashboard();
       case 'RESIDENT':
         return const ResidentDashboard();
+      case 'SUPER_ADMIN': // AÑADIR para super administradores
+        return const AdminDashboard();
       default:
         return const LoginScreen(); // Rol no reconocido
     }
