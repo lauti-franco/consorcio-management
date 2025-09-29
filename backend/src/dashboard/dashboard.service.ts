@@ -1,9 +1,9 @@
-// src/dashboard/dashboard.service.ts - VERSIÓN CORREGIDA
+// src/dashboard/dashboard.service.ts - VERSIÓN COMPLETAMENTE CORREGIDA
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserRole } from '@prisma/client';
 
-// Interfaces para tipado fuerte
+// Interfaces para tipado fuerte (las mismas que tenías)
 export interface AdminDashboard {
   overview: {
     totalProperties: number;
@@ -53,7 +53,7 @@ export interface MaintenanceDashboard {
   performanceMetrics: PerformanceMetrics;
 }
 
-// Interfaces auxiliares
+// Interfaces auxiliares (las mismas que tenías)
 interface PropertyStats {
   total: number;
   active: number;
@@ -1069,6 +1069,203 @@ export class DashboardService {
       resolutionRate,
       averageResponseTime,
       customerSatisfaction
+    };
+  }
+
+  // ========== MÉTODOS PARA KPIs AVANZADOS (NUEVOS) ==========
+
+  async getAdvancedKPIs(userId: string, tenantId: string) {
+    const [
+      financialHealth,
+      maintenanceMetrics,
+      occupancyData,
+      collectionPerformance
+    ] = await Promise.all([
+      this.getFinancialHealth(tenantId),
+      this.getMaintenanceMetrics(tenantId),
+      this.getOccupancyData(tenantId),
+      this.getCollectionPerformance(tenantId)
+    ]);
+
+    return {
+      financialHealth,
+      maintenanceMetrics,
+      occupancyData,
+      collectionPerformance
+    };
+  }
+
+  private async getFinancialHealth(tenantId: string) {
+    const currentMonth = new Date();
+    const previousMonth = new Date(currentMonth);
+    previousMonth.setMonth(previousMonth.getMonth() - 1);
+
+    const [currentRevenue, previousRevenue, currentExpenses, previousExpenses] = await Promise.all([
+      this.getMonthlyRevenueForPeriod(tenantId, currentMonth),
+      this.getMonthlyRevenueForPeriod(tenantId, previousMonth),
+      this.getMonthlyExpensesForPeriod(tenantId, currentMonth),
+      this.getMonthlyExpensesForPeriod(tenantId, previousMonth)
+    ]);
+
+    const revenueGrowth = previousRevenue > 0 
+      ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 
+      : 0;
+
+    const expenseGrowth = previousExpenses > 0 
+      ? ((currentExpenses - previousExpenses) / previousExpenses) * 100 
+      : 0;
+
+    return {
+      currentRevenue,
+      revenueGrowth,
+      currentExpenses,
+      expenseGrowth,
+      netProfit: currentRevenue - currentExpenses,
+      profitMargin: currentRevenue > 0 ? ((currentRevenue - currentExpenses) / currentRevenue) * 100 : 0
+    };
+  }
+
+  private async getMonthlyRevenueForPeriod(tenantId: string, date: Date): Promise<number> {
+    const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+    const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    
+    const result = await this.prisma.payment.aggregate({
+      where: {
+        tenantId: tenantId,
+        status: 'COMPLETED',
+        date: { gte: startOfMonth, lte: endOfMonth },
+      },
+      _sum: { amount: true },
+    });
+
+    return result._sum.amount || 0;
+  }
+
+  private async getMonthlyExpensesForPeriod(tenantId: string, date: Date): Promise<number> {
+    const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+    const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    
+    const result = await this.prisma.expense.aggregate({
+      where: {
+        tenantId: tenantId,
+        dueDate: { gte: startOfMonth, lte: endOfMonth },
+      },
+      _sum: { amount: true },
+    });
+
+    return result._sum.amount || 0;
+  }
+
+  private async getMaintenanceMetrics(tenantId: string) {
+    const [totalTickets, resolvedTickets, avgResolutionTime] = await Promise.all([
+      this.prisma.ticket.count({ where: { tenantId } }),
+      this.prisma.ticket.count({ 
+        where: { 
+          tenantId, 
+          status: 'RESOLVED',
+          updatedAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+        } 
+      }),
+      this.getAverageResolutionTime(tenantId)
+    ]);
+
+    return {
+      totalTickets,
+      resolvedTickets,
+      resolutionRate: totalTickets > 0 ? (resolvedTickets / totalTickets) * 100 : 0,
+      avgResolutionTime
+    };
+  }
+
+  private async getAverageResolutionTime(tenantId: string): Promise<number> {
+    const resolvedTickets = await this.prisma.ticket.findMany({
+      where: {
+        tenantId: tenantId,
+        status: 'RESOLVED',
+        updatedAt: {
+          gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        }
+      },
+      select: {
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+
+    if (resolvedTickets.length === 0) return 0;
+
+    const totalTime = resolvedTickets.reduce((sum, ticket) => {
+      const resolutionTime = ticket.updatedAt.getTime() - ticket.createdAt.getTime();
+      return sum + resolutionTime;
+    }, 0);
+
+    return totalTime / resolvedTickets.length / (1000 * 60 * 60 * 24); // Convertir a días
+  }
+
+  private async getOccupancyData(tenantId: string) {
+    const [totalUnits, occupiedUnits] = await Promise.all([
+      this.prisma.unit.count({
+        where: {
+          property: {
+            tenantId: tenantId
+          }
+        }
+      }),
+      this.prisma.unit.count({
+        where: {
+          property: {
+            tenantId: tenantId
+          },
+          isOccupied: true
+        }
+      })
+    ]);
+
+    const occupancyRate = totalUnits > 0 ? (occupiedUnits / totalUnits) * 100 : 0;
+
+    return {
+      totalUnits,
+      occupiedUnits,
+      occupancyRate,
+      vacancyRate: 100 - occupancyRate
+    };
+  }
+
+  private async getCollectionPerformance(tenantId: string) {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const expenses = await this.prisma.expense.findMany({
+      where: {
+        tenantId,
+        dueDate: { gte: thirtyDaysAgo }
+      },
+      include: {
+        payments: {
+          where: { status: 'COMPLETED' }
+        }
+      }
+    });
+
+    let totalDue = 0;
+    let totalCollected = 0;
+    let overdueAmount = 0;
+
+    expenses.forEach(expense => {
+      totalDue += expense.amount;
+      const paid = expense.payments.reduce((sum, payment) => sum + payment.amount, 0);
+      totalCollected += paid;
+      
+      if (expense.status === 'OVERDUE') {
+        overdueAmount += (expense.amount - paid);
+      }
+    });
+
+    return {
+      totalDue,
+      totalCollected,
+      collectionRate: totalDue > 0 ? (totalCollected / totalDue) * 100 : 0,
+      overdueAmount,
+      delinquencyRate: totalDue > 0 ? (overdueAmount / totalDue) * 100 : 0
     };
   }
 }

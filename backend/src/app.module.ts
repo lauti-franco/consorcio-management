@@ -1,4 +1,4 @@
-// src/app.module.ts
+// src/app.module.ts - VERSIÓN ACTUALIZADA CON DOCUMENTS Y KPIs
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MulterModule } from '@nestjs/platform-express';
@@ -17,6 +17,10 @@ import { PrismaModule } from './prisma/prisma.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { UnitsModule } from './units/units.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+
+// NUEVOS MÓDULOS PARA FASE 2
+import { DocumentsModule } from './documents/documents.module';
+import { KpisModule } from './kpis/kpis.module';
 
 // Importar el middleware de tenant
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
@@ -53,6 +57,10 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
     SubscriptionsModule,
     UnitsModule,
     DashboardModule,
+    
+    // NUEVOS MÓDULOS AGREGADOS
+    DocumentsModule,
+    KpisModule,
   ],
 })
 export class AppModule implements NestModule {

@@ -176,5 +176,41 @@ export declare class DashboardService {
     private getMaintenanceProperties;
     private getPriorityBreakdown;
     private getPerformanceMetrics;
+    getAdvancedKPIs(userId: string, tenantId: string): Promise<{
+        financialHealth: {
+            currentRevenue: number;
+            revenueGrowth: number;
+            currentExpenses: number;
+            expenseGrowth: number;
+            netProfit: number;
+            profitMargin: number;
+        };
+        maintenanceMetrics: {
+            totalTickets: number;
+            resolvedTickets: number;
+            resolutionRate: number;
+            avgResolutionTime: number;
+        };
+        occupancyData: {
+            totalUnits: number;
+            occupiedUnits: number;
+            occupancyRate: number;
+            vacancyRate: number;
+        };
+        collectionPerformance: {
+            totalDue: number;
+            totalCollected: number;
+            collectionRate: number;
+            overdueAmount: number;
+            delinquencyRate: number;
+        };
+    }>;
+    private getFinancialHealth;
+    private getMonthlyRevenueForPeriod;
+    private getMonthlyExpensesForPeriod;
+    private getMaintenanceMetrics;
+    private getAverageResolutionTime;
+    private getOccupancyData;
+    private getCollectionPerformance;
 }
 export {};

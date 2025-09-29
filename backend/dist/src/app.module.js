@@ -25,6 +25,8 @@ const prisma_module_1 = require("./prisma/prisma.module");
 const subscriptions_module_1 = require("./subscriptions/subscriptions.module");
 const units_module_1 = require("./units/units.module");
 const dashboard_module_1 = require("./dashboard/dashboard.module");
+const documents_module_1 = require("./documents/documents.module");
+const kpis_module_1 = require("./kpis/kpis.module");
 const tenant_middleware_1 = require("./common/middleware/tenant.middleware");
 let AppModule = class AppModule {
     configure(consumer) {
@@ -68,6 +70,8 @@ exports.AppModule = AppModule = __decorate([
             subscriptions_module_1.SubscriptionsModule,
             units_module_1.UnitsModule,
             dashboard_module_1.DashboardModule,
+            documents_module_1.DocumentsModule,
+            kpis_module_1.KpisModule,
         ],
     })
 ], AppModule);

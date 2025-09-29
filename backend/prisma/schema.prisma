@@ -1,4 +1,4 @@
-// prisma/schema.prisma - CORREGIDO CON RELACIONES COMPLETAS
+// prisma/schema.prisma - VERSIÓN CORREGIDA Y LIMPIA
 generator client {
   provider = "prisma-client-js"
 }
@@ -16,15 +16,20 @@ model Tenant {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Relaciones COMPLETAS - TODAS las relaciones inversas agregadas
+  // Relaciones COMPLETAS
   userTenants UserTenant[]
   properties  Property[]
   expenses    Expense[]
-  units       Unit[]        // AGREGADO
-  payments    Payment[]     // AGREGADO
-  tickets     Ticket[]      // AGREGADO
-  tasks       Task[]        // AGREGADO
-  files       File[]        // AGREGADO
+  units       Unit[]
+  payments    Payment[]
+  tickets     Ticket[]
+  tasks       Task[]
+  files       File[]
+  notifications Notification[]
+  notificationTemplates NotificationTemplate[]
+  calendarEvents CalendarEvent[]
+  chatRooms   ChatRoom[]
+  documents   Document[]
   
   @@map("tenants")
 }
@@ -60,6 +65,16 @@ model User {
   createdTasks    Task[]       @relation("TaskCreator")
   refreshTokens   RefreshToken[]
   files           File[]
+  
+  // Nuevas relaciones
+  notifications   Notification[]
+  createdCalendarEvents CalendarEvent[] @relation("CalendarEventCreator")
+  calendarAttendees CalendarAttendee[]
+  chatParticipants ChatParticipant[]
+  sentMessages    ChatMessage[] @relation("MessageSender")
+  readMessages    MessageRead[]
+  uploadedDocuments Document[]
+  documentPermissions DocumentPermission[]
 
   @@map("users")
 }
@@ -122,6 +137,9 @@ model Property {
   expenses  Expense[]
   tickets   Ticket[]
   tasks     Task[]    @relation("TaskProperty")
+  calendarEvents CalendarEvent[]
+  chatRooms ChatRoom[]
+  documents Document[]
 
   @@map("properties")
 }
@@ -297,7 +315,195 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
-// ENUMS (sin cambios)
+model Notification {
+  id          String         @id @default(cuid())
+  type        NotificationType
+  title       String
+  message     String
+  data        Json?          // Datos adicionales
+  isRead      Boolean        @default(false)
+  priority    Priority       @default(MEDIUM)
+  
+  // Relaciones
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenantId    String
+  tenant      Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime       @default(now())
+  scheduledAt DateTime?      // Para notificaciones programadas
+  sentAt      DateTime?      // Cuando se envió realmente
+
+  @@map("notifications")
+}
+
+model NotificationTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  type        NotificationType
+  subject     String
+  body        String
+  variables   String[] // ["{userName}", "{dueDate}", "{amount}"]
+  isActive    Boolean  @default(true)
+  
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("notification_templates")
+}
+
+model CalendarEvent {
+  id          String        @id @default(cuid())
+  title       String
+  description String?
+  type        CalendarEventType
+  startDate   DateTime
+  endDate     DateTime
+  allDay      Boolean       @default(false)
+  location    String?
+  
+  // Relaciones
+  propertyId  String?
+  property    Property?     @relation(fields: [propertyId], references: [id])
+  createdById String
+  createdBy   User          @relation("CalendarEventCreator", fields: [createdById], references: [id])
+  tenantId    String
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  // Participantes
+  attendees   CalendarAttendee[]
+  
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("calendar_events")
+}
+
+model CalendarAttendee {
+  id       String   @id @default(cuid())
+  eventId  String
+  event    CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status   AttendeeStatus @default(PENDING)
+
+  @@unique([eventId, userId])
+  @@map("calendar_attendees")
+}
+
+model ChatRoom {
+  id          String   @id @default(cuid())
+  name        String?
+  type        ChatRoomType @default(DIRECT)
+  propertyId  String?
+  property    Property? @relation(fields: [propertyId], references: [id])
+  
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  // Relaciones
+  participants ChatParticipant[]
+  messages     ChatMessage[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("chat_rooms")
+}
+
+model ChatParticipant {
+  id       String   @id @default(cuid())
+  roomId   String
+  room     ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt DateTime @default(now())
+  isActive Boolean  @default(true)
+
+  @@unique([roomId, userId])
+  @@map("chat_participants")
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  content   String
+  type      MessageType @default(TEXT)
+  
+  roomId    String
+  room      ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User     @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  
+  readBy    MessageRead[]
+  parentId  String?
+  parent    ChatMessage? @relation("MessageReplies", fields: [parentId], references: [id])
+  replies   ChatMessage[] @relation("MessageReplies")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("chat_messages")
+}
+
+model MessageRead {
+  id        String   @id @default(cuid())
+  messageId String
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt    DateTime @default(now())
+
+  @@unique([messageId, userId])
+  @@map("message_reads")
+}
+
+model Document {
+  id          String        @id @default(cuid())
+  title       String
+  description String?
+  type        DocumentType
+  category    String?       // "Reglamento", "Acta", "Contrato", etc.
+  fileUrl     String
+  fileName    String
+  fileSize    Int
+  mimeType    String
+  version     String        @default("1.0")
+  isPublic    Boolean       @default(false)
+  isArchived  Boolean       @default(false)
+  
+  // Relaciones
+  propertyId  String?
+  property    Property?     @relation(fields: [propertyId], references: [id])
+  uploadedById String
+  uploadedBy  User          @relation(fields: [uploadedById], references: [id])
+  tenantId    String
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  // Control de acceso
+  permissions DocumentPermission[]
+  
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("documents")
+}
+
+model DocumentPermission {
+  id         String   @id @default(cuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  role       UserRole? // Si es null, aplica a todos los usuarios del tenant
+  canView    Boolean  @default(true)
+  canEdit    Boolean  @default(false)
+  canDelete  Boolean  @default(false)
+
+  @@unique([documentId, userId])
+  @@map("document_permissions")
+}
+
+// ENUMS CORREGIDOS (sin duplicados)
 enum UserRole {
   SUPER_ADMIN
   ADMIN
@@ -373,4 +579,55 @@ enum TaskStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+}
+
+enum NotificationType {
+  PAYMENT_OVERDUE
+  PAYMENT_REMINDER
+  MAINTENANCE_SCHEDULED
+  MEETING_REMINDER
+  TICKET_UPDATE
+  EXPENSE_APPROVED
+  GENERAL_ANNOUNCEMENT
+}
+
+enum CalendarEventType {
+  MEETING
+  MAINTENANCE
+  PAYMENT_DUE
+  INSPECTION
+  HOLIDAY
+  OTHER
+}
+
+enum AttendeeStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  TENTATIVE
+}
+
+enum ChatRoomType {
+  DIRECT
+  GROUP
+  PROPERTY
+  MAINTENANCE
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  SYSTEM
+}
+
+enum DocumentType {
+  REGULATION
+  MEETING_MINUTES
+  CONTRACT
+  FINANCIAL_STATEMENT
+  MAINTENANCE_REPORT
+  INSURANCE
+  BUDGET
+  OTHER
 }
