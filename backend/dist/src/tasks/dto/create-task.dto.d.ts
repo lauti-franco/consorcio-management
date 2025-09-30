@@ -3,7 +3,7 @@ export declare class CreateTaskDto {
     title: string;
     description: string;
     assignedTo: string;
-    buildingId: string;
+    propertyId: string;
     priority?: Priority;
     status?: TaskStatus;
     dueDate?: string;

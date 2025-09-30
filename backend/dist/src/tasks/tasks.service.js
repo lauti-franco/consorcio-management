@@ -18,6 +18,28 @@ let TasksService = class TasksService {
         this.prisma = prisma;
     }
     async create(createTaskDto, userId) {
+        const property = await this.prisma.property.findFirst({
+            where: {
+                id: createTaskDto.propertyId,
+                tenantId: createTaskDto.tenantId
+            }
+        });
+        if (!property) {
+            throw new common_1.NotFoundException('Property not found in this tenant');
+        }
+        if (createTaskDto.assignedTo) {
+            const assignedUserTenant = await this.prisma.userTenant.findUnique({
+                where: {
+                    userId_tenantId: {
+                        userId: createTaskDto.assignedTo,
+                        tenantId: createTaskDto.tenantId
+                    }
+                }
+            });
+            if (!assignedUserTenant) {
+                throw new common_1.ForbiddenException('Assigned user does not have access to this tenant');
+            }
+        }
         return this.prisma.task.create({
             data: {
                 title: createTaskDto.title,
@@ -26,7 +48,8 @@ let TasksService = class TasksService {
                 status: createTaskDto.status || 'PENDING',
                 dueDate: createTaskDto.dueDate ? new Date(createTaskDto.dueDate) : null,
                 photos: createTaskDto.photos || [],
-                buildingId: createTaskDto.buildingId,
+                propertyId: createTaskDto.propertyId,
+                tenantId: createTaskDto.tenantId,
                 assignedToId: createTaskDto.assignedTo,
                 createdById: userId,
             },
@@ -45,7 +68,7 @@ let TasksService = class TasksService {
                         email: true,
                     },
                 },
-                building: {
+                property: {
                     select: {
                         id: true,
                         name: true,
@@ -54,16 +77,17 @@ let TasksService = class TasksService {
             },
         });
     }
-    async findAll(userId, userRole) {
-        const where = {};
+    async findAll(userId, userRole, tenantId) {
+        const where = { tenantId };
         if (userRole === client_1.UserRole.MAINTENANCE) {
             where.assignedToId = userId;
         }
         else if (userRole === client_1.UserRole.RESIDENT) {
-            where.building = {
+            where.property = {
                 units: {
                     some: {
                         managerId: userId,
+                        tenantId: tenantId
                     },
                 },
             };
@@ -86,7 +110,7 @@ let TasksService = class TasksService {
                         email: true,
                     },
                 },
-                building: {
+                property: {
                     select: {
                         id: true,
                         name: true,
@@ -98,9 +122,12 @@ let TasksService = class TasksService {
             },
         });
     }
-    async findOne(id, userId, userRole) {
-        const task = await this.prisma.task.findUnique({
-            where: { id },
+    async findOne(id, userId, userRole, tenantId) {
+        const task = await this.prisma.task.findFirst({
+            where: {
+                id,
+                tenantId
+            },
             include: {
                 assignedTo: {
                     select: {
@@ -117,7 +144,7 @@ let TasksService = class TasksService {
                         email: true,
                     },
                 },
-                building: {
+                property: {
                     select: {
                         id: true,
                         name: true,
@@ -127,19 +154,35 @@ let TasksService = class TasksService {
             },
         });
         if (!task) {
-            throw new common_1.NotFoundException('Task not found');
+            throw new common_1.NotFoundException('Task not found in this tenant');
         }
-        await this.verifyTaskAccess(task, userId, userRole);
+        await this.verifyTaskAccess(task, userId, userRole, tenantId);
         return task;
     }
-    async update(id, updateTaskDto, userId, userRole) {
-        const task = await this.prisma.task.findUnique({
-            where: { id },
+    async update(id, updateTaskDto, userId, userRole, tenantId) {
+        const task = await this.prisma.task.findFirst({
+            where: {
+                id,
+                tenantId
+            },
         });
         if (!task) {
-            throw new common_1.NotFoundException('Task not found');
+            throw new common_1.NotFoundException('Task not found in this tenant');
         }
-        await this.verifyTaskAccess(task, userId, userRole);
+        await this.verifyTaskAccess(task, userId, userRole, tenantId);
+        if (updateTaskDto.assignedTo) {
+            const assignedUserTenant = await this.prisma.userTenant.findUnique({
+                where: {
+                    userId_tenantId: {
+                        userId: updateTaskDto.assignedTo,
+                        tenantId: tenantId
+                    }
+                }
+            });
+            if (!assignedUserTenant) {
+                throw new common_1.ForbiddenException('Assigned user does not have access to this tenant');
+            }
+        }
         try {
             return await this.prisma.task.update({
                 where: { id },
@@ -167,7 +210,7 @@ let TasksService = class TasksService {
                             email: true,
                         },
                     },
-                    building: {
+                    property: {
                         select: {
                             id: true,
                             name: true,
@@ -180,12 +223,15 @@ let TasksService = class TasksService {
             throw new common_1.NotFoundException('Task not found');
         }
     }
-    async remove(id, userId, userRole) {
-        const task = await this.prisma.task.findUnique({
-            where: { id },
+    async remove(id, userId, userRole, tenantId) {
+        const task = await this.prisma.task.findFirst({
+            where: {
+                id,
+                tenantId
+            },
         });
         if (!task) {
-            throw new common_1.NotFoundException('Task not found');
+            throw new common_1.NotFoundException('Task not found in this tenant');
         }
         if (userRole !== client_1.UserRole.ADMIN && task.createdById !== userId) {
             throw new common_1.ForbiddenException('No tienes permisos para eliminar esta tarea');
@@ -199,14 +245,17 @@ let TasksService = class TasksService {
             throw new common_1.NotFoundException('Task not found');
         }
     }
-    async addPhoto(id, photoUrl, userId, userRole) {
-        const task = await this.prisma.task.findUnique({
-            where: { id },
+    async addPhoto(id, photoUrl, userId, userRole, tenantId) {
+        const task = await this.prisma.task.findFirst({
+            where: {
+                id,
+                tenantId
+            },
         });
         if (!task) {
-            throw new common_1.NotFoundException('Task not found');
+            throw new common_1.NotFoundException('Task not found in this tenant');
         }
-        await this.verifyTaskAccess(task, userId, userRole);
+        await this.verifyTaskAccess(task, userId, userRole, tenantId);
         const updatedPhotos = [...task.photos, photoUrl];
         return this.prisma.task.update({
             where: { id },
@@ -231,12 +280,15 @@ let TasksService = class TasksService {
             },
         });
     }
-    async completeTask(id, userId, userRole) {
-        const task = await this.prisma.task.findUnique({
-            where: { id },
+    async completeTask(id, userId, userRole, tenantId) {
+        const task = await this.prisma.task.findFirst({
+            where: {
+                id,
+                tenantId
+            },
         });
         if (!task) {
-            throw new common_1.NotFoundException('Task not found');
+            throw new common_1.NotFoundException('Task not found in this tenant');
         }
         if (userRole !== client_1.UserRole.ADMIN && task.assignedToId !== userId) {
             throw new common_1.ForbiddenException('No tienes permisos para completar esta tarea');
@@ -264,22 +316,33 @@ let TasksService = class TasksService {
             },
         });
     }
-    async verifyTaskAccess(task, userId, userRole) {
+    async verifyTaskAccess(task, userId, userRole, tenantId) {
         if (userRole === client_1.UserRole.ADMIN) {
+            const property = await this.prisma.property.findFirst({
+                where: {
+                    id: task.propertyId,
+                    ownerId: userId,
+                    tenantId: tenantId
+                }
+            });
+            if (!property) {
+                throw new common_1.ForbiddenException('Access denied to this task');
+            }
             return true;
         }
         if (userRole === client_1.UserRole.MAINTENANCE && task.assignedToId !== userId) {
-            throw new common_1.ForbiddenException('Access denied');
+            throw new common_1.ForbiddenException('Access denied to this task');
         }
         if (userRole === client_1.UserRole.RESIDENT) {
-            const userBuildingAccess = await this.prisma.unit.findFirst({
+            const userPropertyAccess = await this.prisma.unit.findFirst({
                 where: {
                     managerId: userId,
-                    buildingId: task.buildingId,
+                    propertyId: task.propertyId,
+                    tenantId: tenantId
                 },
             });
-            if (!userBuildingAccess) {
-                throw new common_1.ForbiddenException('Access denied');
+            if (!userPropertyAccess) {
+                throw new common_1.ForbiddenException('Access denied to this task');
             }
         }
         return true;

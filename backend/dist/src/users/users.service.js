@@ -17,29 +17,48 @@ let UsersService = class UsersService {
     constructor(prisma) {
         this.prisma = prisma;
     }
-    async findAll(currentUserId, currentUserRole, role, buildingId) {
+    async findAll(currentUserId, currentUserRole, tenantId, role, propertyId) {
         const where = {};
         if (role) {
             where.role = role;
         }
         if (currentUserRole === client_1.UserRole.RESIDENT) {
+            where.userTenants = {
+                some: {
+                    tenantId: tenantId,
+                    role: client_1.UserRole.RESIDENT
+                }
+            };
             where.managedUnits = {
                 some: {
-                    building: {
+                    property: {
                         units: {
                             some: {
                                 managerId: currentUserId,
                             },
                         },
                     },
+                    tenantId: tenantId
                 },
             };
         }
         else if (currentUserRole === client_1.UserRole.ADMIN) {
+            where.userTenants = {
+                some: {
+                    tenantId: tenantId
+                }
+            };
             where.OR = [
-                { ownedBuildings: { some: { ownerId: currentUserId } } },
-                { managedUnits: { some: { building: { ownerId: currentUserId } } } },
+                { ownedProperties: { some: { ownerId: currentUserId, tenantId: tenantId } } },
+                { managedUnits: { some: { property: { ownerId: currentUserId, tenantId: tenantId } } } },
             ];
+        }
+        else if (currentUserRole === client_1.UserRole.MAINTENANCE) {
+            where.userTenants = {
+                some: {
+                    tenantId: tenantId
+                }
+            };
         }
         return this.prisma.user.findMany({
             where,
@@ -62,17 +81,19 @@ let UsersService = class UsersService {
                         currentPeriodEnd: true,
                     },
                 },
-                ownedBuildings: {
+                ownedProperties: {
+                    where: { tenantId: tenantId },
                     select: {
                         id: true,
                         name: true,
                     },
                 },
                 managedUnits: {
+                    where: { tenantId: tenantId },
                     select: {
                         id: true,
                         number: true,
-                        building: {
+                        property: {
                             select: {
                                 id: true,
                                 name: true,
@@ -80,11 +101,23 @@ let UsersService = class UsersService {
                         },
                     },
                 },
+                userTenants: {
+                    where: { tenantId: tenantId },
+                    select: {
+                        role: true,
+                        tenant: {
+                            select: {
+                                id: true,
+                                name: true
+                            }
+                        }
+                    }
+                }
             },
         });
     }
-    async findOne(id, currentUserId, currentUserRole) {
-        await this.verifyUserAccess(id, currentUserId, currentUserRole);
+    async findOne(id, currentUserId, currentUserRole, tenantId) {
+        await this.verifyUserAccess(id, currentUserId, currentUserRole, tenantId);
         const user = await this.prisma.user.findUnique({
             where: { id },
             select: {
@@ -109,7 +142,8 @@ let UsersService = class UsersService {
                         features: true,
                     },
                 },
-                ownedBuildings: {
+                ownedProperties: {
+                    where: { tenantId: tenantId },
                     select: {
                         id: true,
                         name: true,
@@ -124,13 +158,14 @@ let UsersService = class UsersService {
                     },
                 },
                 managedUnits: {
+                    where: { tenantId: tenantId },
                     select: {
                         id: true,
                         number: true,
                         floor: true,
                         type: true,
                         area: true,
-                        building: {
+                        property: {
                             select: {
                                 id: true,
                                 name: true,
@@ -146,6 +181,18 @@ let UsersService = class UsersService {
                         },
                     },
                 },
+                userTenants: {
+                    where: { tenantId: tenantId },
+                    select: {
+                        role: true,
+                        tenant: {
+                            select: {
+                                id: true,
+                                name: true
+                            }
+                        }
+                    }
+                }
             },
         });
         if (!user) {
@@ -153,8 +200,8 @@ let UsersService = class UsersService {
         }
         return user;
     }
-    async update(id, updateData, currentUserId, currentUserRole) {
-        await this.verifyUserAccess(id, currentUserId, currentUserRole);
+    async update(id, updateData, currentUserId, currentUserRole, tenantId) {
+        await this.verifyUserAccess(id, currentUserId, currentUserRole, tenantId);
         try {
             return await this.prisma.user.update({
                 where: { id },
@@ -178,49 +225,59 @@ let UsersService = class UsersService {
             throw new common_1.NotFoundException('User not found');
         }
     }
-    async deactivate(id, currentUserId, currentUserRole) {
+    async deactivate(id, currentUserId, currentUserRole, tenantId) {
         if (id === currentUserId) {
             throw new common_1.ForbiddenException('No puedes desactivar tu propia cuenta');
         }
-        await this.verifyUserAccess(id, currentUserId, currentUserRole);
+        await this.verifyUserAccess(id, currentUserId, currentUserRole, tenantId);
         try {
-            return await this.prisma.user.update({
-                where: { id },
-                data: { isActive: false },
-                select: {
-                    id: true,
-                    name: true,
-                    email: true,
-                    isActive: true,
+            await this.prisma.userTenant.update({
+                where: {
+                    userId_tenantId: {
+                        userId: id,
+                        tenantId: tenantId
+                    }
                 },
+                data: { role: client_1.UserRole.RESIDENT }
             });
+            return {
+                message: 'Usuario desactivado del tenant exitosamente',
+                userId: id,
+                tenantId: tenantId
+            };
         }
         catch {
-            throw new common_1.NotFoundException('User not found');
+            throw new common_1.NotFoundException('User not found in this tenant');
         }
     }
-    async remove(id, currentUserId, currentUserRole) {
+    async remove(id, currentUserId, currentUserRole, tenantId) {
         if (id === currentUserId) {
             throw new common_1.ForbiddenException('No puedes eliminar tu propia cuenta');
         }
         if (currentUserRole !== client_1.UserRole.SUPER_ADMIN) {
-            throw new common_1.ForbiddenException('Solo los super administradores pueden eliminar usuarios');
+            throw new common_1.ForbiddenException('Solo los super administradores pueden eliminar usuarios del tenant');
         }
-        await this.verifyUserAccess(id, currentUserId, currentUserRole);
+        await this.verifyUserAccess(id, currentUserId, currentUserRole, tenantId);
         try {
-            return await this.prisma.user.delete({
-                where: { id },
+            return await this.prisma.userTenant.delete({
+                where: {
+                    userId_tenantId: {
+                        userId: id,
+                        tenantId: tenantId
+                    }
+                }
             });
         }
         catch {
-            throw new common_1.NotFoundException('User not found');
+            throw new common_1.NotFoundException('User not found in this tenant');
         }
     }
-    async getUserStats(userId) {
+    async getUserStats(userId, tenantId) {
         const user = await this.prisma.user.findUnique({
             where: { id: userId },
             include: {
-                ownedBuildings: {
+                ownedProperties: {
+                    where: { tenantId: tenantId },
                     include: {
                         _count: {
                             select: {
@@ -232,6 +289,7 @@ let UsersService = class UsersService {
                     },
                 },
                 managedUnits: {
+                    where: { tenantId: tenantId },
                     include: {
                         _count: {
                             select: {
@@ -244,11 +302,21 @@ let UsersService = class UsersService {
                 },
                 _count: {
                     select: {
-                        ownedBuildings: true,
-                        managedUnits: true,
-                        createdTasks: true,
-                        assignedTasks: true,
-                        tickets: true,
+                        ownedProperties: {
+                            where: { tenantId: tenantId }
+                        },
+                        managedUnits: {
+                            where: { tenantId: tenantId }
+                        },
+                        createdTasks: {
+                            where: { tenantId: tenantId }
+                        },
+                        assignedTasks: {
+                            where: { tenantId: tenantId }
+                        },
+                        tickets: {
+                            where: { tenantId: tenantId }
+                        },
                     },
                 },
             },
@@ -264,41 +332,63 @@ let UsersService = class UsersService {
                 role: user.role,
             },
             stats: {
-                ownedBuildings: user._count.ownedBuildings,
+                ownedProperties: user._count.ownedProperties,
                 managedUnits: user._count.managedUnits,
                 createdTasks: user._count.createdTasks,
                 assignedTasks: user._count.assignedTasks,
                 tickets: user._count.tickets,
             },
-            buildings: user.ownedBuildings.map(building => ({
-                id: building.id,
-                name: building.name,
-                units: building._count.units,
-                expenses: building._count.expenses,
-                tickets: building._count.tickets,
+            properties: user.ownedProperties.map(property => ({
+                id: property.id,
+                name: property.name,
+                units: property._count.units,
+                expenses: property._count.expenses,
+                tickets: property._count.tickets,
             })),
         };
     }
-    async verifyUserAccess(targetUserId, currentUserId, currentUserRole) {
+    async verifyUserAccess(targetUserId, currentUserId, currentUserRole, tenantId) {
         if (currentUserRole === client_1.UserRole.SUPER_ADMIN) {
             return true;
+        }
+        const targetUserTenant = await this.prisma.userTenant.findUnique({
+            where: {
+                userId_tenantId: {
+                    userId: targetUserId,
+                    tenantId: tenantId
+                }
+            }
+        });
+        if (!targetUserTenant) {
+            throw new common_1.ForbiddenException('El usuario no tiene acceso a este tenant');
         }
         if (currentUserRole === client_1.UserRole.ADMIN) {
             const userAccess = await this.prisma.user.findFirst({
                 where: {
                     id: targetUserId,
+                    userTenants: {
+                        some: {
+                            tenantId: tenantId
+                        }
+                    },
                     OR: [
-                        { ownedBuildings: { some: { ownerId: currentUserId } } },
-                        { managedUnits: { some: { building: { ownerId: currentUserId } } } },
+                        { ownedProperties: { some: { ownerId: currentUserId, tenantId: tenantId } } },
+                        { managedUnits: { some: { property: { ownerId: currentUserId, tenantId: tenantId } } } },
                     ],
                 },
             });
             if (!userAccess) {
-                throw new common_1.ForbiddenException('No tienes permisos para acceder a este usuario');
+                throw new common_1.ForbiddenException('No tienes permisos para acceder a este usuario en este tenant');
             }
             return true;
         }
         if (currentUserRole === client_1.UserRole.RESIDENT) {
+            if (targetUserId !== currentUserId) {
+                throw new common_1.ForbiddenException('Solo puedes acceder a tu propia información en este tenant');
+            }
+            return true;
+        }
+        if (currentUserRole === client_1.UserRole.MAINTENANCE) {
             if (targetUserId !== currentUserId) {
                 throw new common_1.ForbiddenException('Solo puedes acceder a tu propia información');
             }

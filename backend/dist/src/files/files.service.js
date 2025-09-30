@@ -20,7 +20,7 @@ let FilesService = class FilesService {
         this.prisma = prisma;
         this.configService = configService;
     }
-    async uploadFile(file, userId) {
+    async uploadFile(file, userId, tenantId) {
         if (!file) {
             throw new common_1.BadRequestException('No file provided');
         }
@@ -41,31 +41,37 @@ let FilesService = class FilesService {
                 mimeType: file.mimetype,
                 size: file.size,
                 uploadedBy: userId,
+                tenantId: tenantId,
             },
         });
         return fileRecord;
     }
-    async findAll(userId) {
+    async findAll(userId, tenantId) {
         return this.prisma.file.findMany({
-            where: { uploadedBy: userId },
+            where: {
+                uploadedBy: userId,
+                tenantId: tenantId
+            },
             orderBy: {
                 createdAt: 'desc',
             },
         });
     }
-    async findOne(id, userId) {
+    async findOne(id, userId, tenantId) {
         return this.prisma.file.findFirst({
             where: {
                 id,
                 uploadedBy: userId,
+                tenantId: tenantId
             },
         });
     }
-    async remove(id, userId) {
+    async remove(id, userId, tenantId) {
         const file = await this.prisma.file.findFirst({
             where: {
                 id,
                 uploadedBy: userId,
+                tenantId: tenantId
             },
         });
         if (!file) {

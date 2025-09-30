@@ -9,34 +9,49 @@ export declare class AuthService {
     register(registerDto: RegisterDto): Promise<{
         message: string;
         data: {
+            tenantId: string;
             accessToken: string;
             refreshToken: string;
             expiresIn: string;
             user: {
                 id: string;
                 name: string;
+                isActive: boolean;
+                createdAt: Date;
+                updatedAt: Date;
                 email: string;
                 role: import(".prisma/client").$Enums.UserRole;
                 phone: string;
                 avatar: string;
-                isActive: boolean;
                 emailVerified: boolean;
-                createdAt: Date;
-                updatedAt: Date;
             };
         };
     }>;
     login(loginDto: LoginDto): Promise<{
         message: string;
         data: {
+            tenantId: string;
             accessToken: string;
             refreshToken: string;
             expiresIn: string;
             user: {
+                userTenants: ({
+                    tenant: {
+                        id: string;
+                        name: string;
+                        description: string;
+                    };
+                } & {
+                    id: string;
+                    role: import(".prisma/client").$Enums.UserRole;
+                    userId: string;
+                    tenantId: string;
+                })[];
                 subscription: {
                     id: string;
                     createdAt: Date;
                     updatedAt: Date;
+                    userId: string;
                     plan: import(".prisma/client").$Enums.PlanType;
                     status: import(".prisma/client").$Enums.SubscriptionStatus;
                     stripeSubscriptionId: string | null;
@@ -44,67 +59,55 @@ export declare class AuthService {
                     currentPeriodStart: Date | null;
                     currentPeriodEnd: Date | null;
                     cancelAtPeriodEnd: boolean;
-                    maxBuildings: number;
+                    maxProperties: number;
                     maxUsers: number;
                     features: import("@prisma/client/runtime/library").JsonValue;
-                    userId: string;
                 };
-                ownedBuildings: {
+                ownedProperties: {
                     id: string;
                     name: string;
-                    isActive: boolean;
-                    createdAt: Date;
-                    updatedAt: Date;
-                    address: string;
-                    city: string;
-                    settings: import("@prisma/client/runtime/library").JsonValue;
-                    ownerId: string;
+                    tenantId: string;
                 }[];
                 managedUnits: ({
-                    building: {
+                    property: {
                         id: string;
                         name: string;
-                        isActive: boolean;
-                        createdAt: Date;
-                        updatedAt: Date;
-                        address: string;
-                        city: string;
-                        settings: import("@prisma/client/runtime/library").JsonValue;
-                        ownerId: string;
+                        tenantId: string;
                     };
                 } & {
                     number: string;
                     id: string;
+                    tenantId: string;
                     features: string[];
                     floor: number;
                     type: import(".prisma/client").$Enums.UnitType;
-                    area: number;
+                    area: number | null;
                     bedrooms: number | null;
                     bathrooms: number | null;
                     isOccupied: boolean;
-                    buildingId: string;
+                    propertyId: string;
                     managerId: string | null;
                 })[];
                 id: string;
                 name: string;
+                isActive: boolean;
+                createdAt: Date;
+                updatedAt: Date;
                 email: string;
                 role: import(".prisma/client").$Enums.UserRole;
                 phone: string | null;
                 avatar: string | null;
-                isActive: boolean;
                 emailVerified: boolean;
                 lastLogin: Date | null;
-                createdAt: Date;
-                updatedAt: Date;
             };
         };
     }>;
     validateUser(payload: any): Promise<{
         id: string;
         name: string;
+        isActive: boolean;
         email: string;
         role: import(".prisma/client").$Enums.UserRole;
-        isActive: boolean;
         subscription: {
             plan: import(".prisma/client").$Enums.PlanType;
             status: import(".prisma/client").$Enums.SubscriptionStatus;

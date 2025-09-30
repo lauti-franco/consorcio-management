@@ -35,11 +35,11 @@ __decorate([
     __metadata("design:type", String)
 ], CreateTaskDto.prototype, "assignedTo", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: 'building-id' }),
+    (0, swagger_1.ApiProperty)({ example: 'property-id' }),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
-], CreateTaskDto.prototype, "buildingId", void 0);
+], CreateTaskDto.prototype, "propertyId", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ enum: client_1.Priority, example: client_1.Priority.MEDIUM }),
     (0, class_validator_1.IsEnum)(client_1.Priority),

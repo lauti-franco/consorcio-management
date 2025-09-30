@@ -21,34 +21,37 @@ const update_expense_dto_1 = require("./dto/update-expense.dto");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const roles_guard_1 = require("../common/guards/roles.guard");
 const roles_decorator_1 = require("../common/decorators/roles.decorator");
-const user_role_enum_1 = require("../common/enums/user-role.enum");
+const client_1 = require("@prisma/client");
 let ExpensesController = class ExpensesController {
     constructor(expensesService) {
         this.expensesService = expensesService;
     }
     create(createExpenseDto, req) {
-        return this.expensesService.create(createExpenseDto, req.user.id);
+        return this.expensesService.create({
+            ...createExpenseDto,
+            tenantId: req.tenant.id
+        }, req.user.id);
     }
-    findAll(req, buildingId) {
-        return this.expensesService.findAll(req.user.id, req.user.role, buildingId || req.user.buildingId);
+    findAll(req, propertyId) {
+        return this.expensesService.findAll(req.user.id, req.userTenantRole, req.tenant.id, propertyId);
     }
-    getStats(req) {
-        return this.expensesService.getStats(req.user.buildingId);
+    getStats(req, propertyId) {
+        return this.expensesService.getStats(req.tenant.id, propertyId);
     }
     findOne(id, req) {
-        return this.expensesService.findOne(id, req.user.id, req.user.role, req.user.buildingId);
+        return this.expensesService.findOne(id, req.user.id, req.userTenantRole, req.tenant.id);
     }
     update(id, updateExpenseDto, req) {
-        return this.expensesService.update(id, updateExpenseDto, req.user.id);
+        return this.expensesService.update(id, updateExpenseDto, req.user.id, req.tenant.id);
     }
     remove(id, req) {
-        return this.expensesService.remove(id, req.user.id);
+        return this.expensesService.remove(id, req.user.id, req.tenant.id);
     }
 };
 exports.ExpensesController = ExpensesController;
 __decorate([
     (0, common_1.Post)(),
-    (0, roles_decorator_1.Roles)(user_role_enum_1.UserRole.ADMIN),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.ADMIN, client_1.UserRole.SUPER_ADMIN),
     (0, swagger_1.ApiOperation)({ summary: 'Create a new expense' }),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Req)()),
@@ -58,19 +61,20 @@ __decorate([
 ], ExpensesController.prototype, "create", null);
 __decorate([
     (0, common_1.Get)(),
-    (0, swagger_1.ApiOperation)({ summary: 'Get all expenses' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Get all expenses for current tenant' }),
     __param(0, (0, common_1.Req)()),
-    __param(1, (0, common_1.Query)('buildingId')),
+    __param(1, (0, common_1.Query)('propertyId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], ExpensesController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)('stats'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get expenses statistics' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Get expenses statistics for current tenant' }),
     __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Query)('propertyId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], ExpensesController.prototype, "getStats", null);
 __decorate([
@@ -84,7 +88,7 @@ __decorate([
 ], ExpensesController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Patch)(':id'),
-    (0, roles_decorator_1.Roles)(user_role_enum_1.UserRole.ADMIN),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.ADMIN, client_1.UserRole.SUPER_ADMIN),
     (0, swagger_1.ApiOperation)({ summary: 'Update expense' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
@@ -95,7 +99,7 @@ __decorate([
 ], ExpensesController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)(':id'),
-    (0, roles_decorator_1.Roles)(user_role_enum_1.UserRole.ADMIN),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.ADMIN, client_1.UserRole.SUPER_ADMIN),
     (0, swagger_1.ApiOperation)({ summary: 'Delete expense' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Req)()),

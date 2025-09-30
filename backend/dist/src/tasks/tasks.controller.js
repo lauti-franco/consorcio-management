@@ -21,37 +21,40 @@ const update_task_dto_1 = require("./dto/update-task.dto");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const roles_guard_1 = require("../common/guards/roles.guard");
 const roles_decorator_1 = require("../common/decorators/roles.decorator");
-const user_role_enum_1 = require("../common/enums/user-role.enum");
+const client_1 = require("@prisma/client");
 let TasksController = class TasksController {
     constructor(tasksService) {
         this.tasksService = tasksService;
     }
     create(createTaskDto, req) {
-        return this.tasksService.create(createTaskDto, req.user.id);
+        return this.tasksService.create({
+            ...createTaskDto,
+            tenantId: req.tenant.id
+        }, req.user.id);
     }
     findAll(req) {
-        return this.tasksService.findAll(req.user.id, req.user.role);
+        return this.tasksService.findAll(req.user.id, req.userTenantRole, req.tenant.id);
     }
     findOne(id, req) {
-        return this.tasksService.findOne(id, req.user.id, req.user.role);
+        return this.tasksService.findOne(id, req.user.id, req.userTenantRole, req.tenant.id);
     }
     update(id, updateTaskDto, req) {
-        return this.tasksService.update(id, updateTaskDto, req.user.id, req.user.role);
+        return this.tasksService.update(id, updateTaskDto, req.user.id, req.userTenantRole, req.tenant.id);
     }
     remove(id, req) {
-        return this.tasksService.remove(id, req.user.id, req.user.role);
+        return this.tasksService.remove(id, req.user.id, req.userTenantRole, req.tenant.id);
     }
     addPhoto(id, photoUrl, req) {
-        return this.tasksService.addPhoto(id, photoUrl, req.user.id, req.user.role);
+        return this.tasksService.addPhoto(id, photoUrl, req.user.id, req.userTenantRole, req.tenant.id);
     }
     completeTask(id, req) {
-        return this.tasksService.completeTask(id, req.user.id, req.user.role);
+        return this.tasksService.completeTask(id, req.user.id, req.userTenantRole, req.tenant.id);
     }
 };
 exports.TasksController = TasksController;
 __decorate([
     (0, common_1.Post)(),
-    (0, roles_decorator_1.Roles)(user_role_enum_1.UserRole.ADMIN),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.ADMIN, client_1.UserRole.SUPER_ADMIN),
     (0, swagger_1.ApiOperation)({ summary: 'Create a new task (Admin only)' }),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Req)()),
@@ -61,7 +64,7 @@ __decorate([
 ], TasksController.prototype, "create", null);
 __decorate([
     (0, common_1.Get)(),
-    (0, swagger_1.ApiOperation)({ summary: 'Get all tasks' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Get all tasks for current tenant' }),
     __param(0, (0, common_1.Req)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
@@ -88,7 +91,7 @@ __decorate([
 ], TasksController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)(':id'),
-    (0, roles_decorator_1.Roles)(user_role_enum_1.UserRole.ADMIN),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.ADMIN, client_1.UserRole.SUPER_ADMIN),
     (0, swagger_1.ApiOperation)({ summary: 'Delete task (Admin only)' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Req)()),
@@ -98,8 +101,8 @@ __decorate([
 ], TasksController.prototype, "remove", null);
 __decorate([
     (0, common_1.Post)(':id/photos'),
-    (0, roles_decorator_1.Roles)(user_role_enum_1.UserRole.MAINTENANCE),
-    (0, swagger_1.ApiOperation)({ summary: 'Add photo to task (Maintenance only)' }),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.MAINTENANCE, client_1.UserRole.ADMIN, client_1.UserRole.SUPER_ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Add photo to task (Maintenance and Admin only)' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)('photoUrl')),
     __param(2, (0, common_1.Req)()),
@@ -109,7 +112,7 @@ __decorate([
 ], TasksController.prototype, "addPhoto", null);
 __decorate([
     (0, common_1.Post)(':id/complete'),
-    (0, roles_decorator_1.Roles)(user_role_enum_1.UserRole.MAINTENANCE, user_role_enum_1.UserRole.ADMIN),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.MAINTENANCE, client_1.UserRole.ADMIN, client_1.UserRole.SUPER_ADMIN),
     (0, swagger_1.ApiOperation)({ summary: 'Mark task as completed' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Req)()),

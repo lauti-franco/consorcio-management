@@ -1,4 +1,4 @@
-
+// src/tickets/tickets.service.ts - CORREGIDO PARA MULTI-TENANT
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
@@ -9,7 +9,50 @@ import { UserRole, TicketStatus, Priority } from '@prisma/client';
 export class TicketsService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createTicketDto: CreateTicketDto, userId: string) {
+  async create(createTicketDto: CreateTicketDto & { tenantId: string }, userId: string) {
+    // Verificar que la propiedad existe en el tenant
+    const property = await this.prisma.property.findFirst({
+      where: { 
+        id: createTicketDto.propertyId, // CAMBIADO: buildingId → propertyId
+        tenantId: createTicketDto.tenantId 
+      }
+    });
+
+    if (!property) {
+      throw new NotFoundException('Property not found in this tenant');
+    }
+
+    // Si hay unitId, verificar que la unidad pertenece a la propiedad y al tenant
+    if (createTicketDto.unitId) {
+      const unit = await this.prisma.unit.findFirst({
+        where: { 
+          id: createTicketDto.unitId,
+          propertyId: createTicketDto.propertyId, // CAMBIADO: buildingId → propertyId
+          tenantId: createTicketDto.tenantId
+        }
+      });
+
+      if (!unit) {
+        throw new ForbiddenException('Unit not found in this property and tenant');
+      }
+    }
+
+    // Si se asigna a alguien, verificar que tiene acceso al tenant
+    if (createTicketDto.assignedTo) {
+      const assignedUserTenant = await this.prisma.userTenant.findUnique({
+        where: {
+          userId_tenantId: {
+            userId: createTicketDto.assignedTo,
+            tenantId: createTicketDto.tenantId
+          }
+        }
+      });
+
+      if (!assignedUserTenant) {
+        throw new ForbiddenException('Assigned user does not have access to this tenant');
+      }
+    }
+
     return this.prisma.ticket.create({
       data: {
         title: createTicketDto.title,
@@ -18,10 +61,11 @@ export class TicketsService {
         status: TicketStatus.OPEN,
         category: createTicketDto.category,
         photos: createTicketDto.photos || [],
-        buildingId: createTicketDto.buildingId, // AGREGAR buildingId requerido
-        unitId: createTicketDto.unitId, // AGREGAR unitId
-        userId: userId, // CAMBIAR a userId
-        assignedToId: createTicketDto.assignedTo, // CAMBIAR a assignedToId
+        propertyId: createTicketDto.propertyId, // CAMBIADO: buildingId → propertyId
+        unitId: createTicketDto.unitId,
+        userId: userId,
+        tenantId: createTicketDto.tenantId, // AGREGADO: tenantId
+        assignedToId: createTicketDto.assignedTo,
       },
       include: {
         user: {
@@ -32,7 +76,7 @@ export class TicketsService {
             phone: true,
           },
         },
-        assignedTo: { // CAMBIAR de assignedUser a assignedTo
+        assignedTo: {
           select: {
             id: true,
             name: true,
@@ -40,14 +84,14 @@ export class TicketsService {
             phone: true,
           },
         },
-        building: { // AGREGAR building
+        property: { // CAMBIADO: building → property
           select: {
             id: true,
             name: true,
             address: true,
           },
         },
-        unit: { // AGREGAR unit
+        unit: {
           select: {
             id: true,
             number: true,
@@ -58,29 +102,31 @@ export class TicketsService {
     });
   }
 
-  async findAll(userId: string, userRole: UserRole, buildingId?: string) {
-    const where: any = {};
+  async findAll(userId: string, userRole: UserRole, tenantId: string, propertyId?: string) {
+    const where: any = { tenantId }; // AGREGADO: siempre filtrar por tenant
 
     // Filtrar según el rol del usuario
     if (userRole === UserRole.RESIDENT) {
-      // Residentes ven tickets de sus unidades
+      // Residentes ven tickets de sus unidades en este tenant
       where.unit = {
         managerId: userId,
+        tenantId: tenantId
       };
     } else if (userRole === UserRole.MAINTENANCE) {
-      // Personal de mantenimiento ve tickets asignados o sin asignar
+      // Personal de mantenimiento ve tickets asignados o sin asignar en este tenant
       where.OR = [
-        { assignedToId: userId }, // CAMBIAR a assignedToId
+        { assignedToId: userId },
         { assignedToId: null },
       ];
     } else if (userRole === UserRole.ADMIN) {
-      // Admins ven tickets de sus edificios
-      if (buildingId) {
-        where.buildingId = buildingId;
+      // Admins ven tickets de sus propiedades en este tenant
+      if (propertyId) {
+        where.propertyId = propertyId; // CAMBIADO: buildingId → propertyId
       } else {
-        // Si no hay buildingId, ver todos los edificios del admin
-        where.building = {
+        // Si no hay propertyId, ver todas las propiedades del admin en este tenant
+        where.property = { // CAMBIADO: building → property
           ownerId: userId,
+          tenantId: tenantId
         };
       }
     }
@@ -96,7 +142,7 @@ export class TicketsService {
             phone: true,
           },
         },
-        assignedTo: { // CAMBIAR de assignedUser a assignedTo
+        assignedTo: {
           select: {
             id: true,
             name: true,
@@ -104,7 +150,7 @@ export class TicketsService {
             phone: true,
           },
         },
-        building: {
+        property: { // CAMBIADO: building → property
           select: {
             id: true,
             name: true,
@@ -126,9 +172,12 @@ export class TicketsService {
     });
   }
 
-  async findOne(id: string, userId: string, userRole: UserRole) {
-    const ticket = await this.prisma.ticket.findUnique({
-      where: { id },
+  async findOne(id: string, userId: string, userRole: UserRole, tenantId: string) {
+    const ticket = await this.prisma.ticket.findFirst({
+      where: { 
+        id,
+        tenantId // AGREGADO: filtrar por tenant
+      },
       include: {
         user: {
           select: {
@@ -138,7 +187,7 @@ export class TicketsService {
             phone: true,
           },
         },
-        assignedTo: { // CAMBIAR de assignedUser a assignedTo
+        assignedTo: {
           select: {
             id: true,
             name: true,
@@ -146,7 +195,7 @@ export class TicketsService {
             phone: true,
           },
         },
-        building: {
+        property: { // CAMBIADO: building → property
           select: {
             id: true,
             name: true,
@@ -164,26 +213,45 @@ export class TicketsService {
     });
 
     if (!ticket) {
-      throw new NotFoundException('Ticket not found');
+      throw new NotFoundException('Ticket not found in this tenant');
     }
 
     // Verificar permisos de acceso
-    await this.verifyTicketAccess(ticket, userId, userRole);
+    await this.verifyTicketAccess(ticket, userId, userRole, tenantId);
 
     return ticket;
   }
 
-  async update(id: string, updateTicketDto: UpdateTicketDto, userId: string, userRole: UserRole) {
-    const ticket = await this.prisma.ticket.findUnique({
-      where: { id },
+  async update(id: string, updateTicketDto: UpdateTicketDto, userId: string, userRole: UserRole, tenantId: string) {
+    const ticket = await this.prisma.ticket.findFirst({
+      where: { 
+        id,
+        tenantId // AGREGADO: filtrar por tenant
+      },
     });
 
     if (!ticket) {
-      throw new NotFoundException('Ticket not found');
+      throw new NotFoundException('Ticket not found in this tenant');
     }
 
     // Verificar permisos de acceso
-    await this.verifyTicketAccess(ticket, userId, userRole);
+    await this.verifyTicketAccess(ticket, userId, userRole, tenantId);
+
+    // Si se cambia el usuario asignado, verificar que tiene acceso al tenant
+    if (updateTicketDto.assignedTo) {
+      const assignedUserTenant = await this.prisma.userTenant.findUnique({
+        where: {
+          userId_tenantId: {
+            userId: updateTicketDto.assignedTo,
+            tenantId: tenantId
+          }
+        }
+      });
+
+      if (!assignedUserTenant) {
+        throw new ForbiddenException('Assigned user does not have access to this tenant');
+      }
+    }
 
     return this.prisma.ticket.update({
       where: { id },
@@ -194,7 +262,7 @@ export class TicketsService {
         status: updateTicketDto.status,
         category: updateTicketDto.category,
         photos: updateTicketDto.photos,
-        assignedToId: updateTicketDto.assignedTo, // CAMBIAR a assignedToId
+        assignedToId: updateTicketDto.assignedTo,
       },
       include: {
         user: {
@@ -205,7 +273,7 @@ export class TicketsService {
             phone: true,
           },
         },
-        assignedTo: { // CAMBIAR de assignedUser a assignedTo
+        assignedTo: {
           select: {
             id: true,
             name: true,
@@ -213,7 +281,7 @@ export class TicketsService {
             phone: true,
           },
         },
-        building: {
+        property: { // CAMBIADO: building → property
           select: {
             id: true,
             name: true,
@@ -231,13 +299,16 @@ export class TicketsService {
     });
   }
 
-  async remove(id: string, userId: string, userRole: UserRole) {
-    const ticket = await this.prisma.ticket.findUnique({
-      where: { id },
+  async remove(id: string, userId: string, userRole: UserRole, tenantId: string) {
+    const ticket = await this.prisma.ticket.findFirst({
+      where: { 
+        id,
+        tenantId // AGREGADO: filtrar por tenant
+      },
     });
 
     if (!ticket) {
-      throw new NotFoundException('Ticket not found');
+      throw new NotFoundException('Ticket not found in this tenant');
     }
 
     // Solo admins y el creador pueden eliminar tickets
@@ -250,19 +321,36 @@ export class TicketsService {
     });
   }
 
-  async assignToMe(id: string, userId: string) {
-    const ticket = await this.prisma.ticket.findUnique({
-      where: { id },
+  async assignToMe(id: string, userId: string, tenantId: string) {
+    const ticket = await this.prisma.ticket.findFirst({
+      where: { 
+        id,
+        tenantId // AGREGADO: filtrar por tenant
+      },
     });
 
     if (!ticket) {
-      throw new NotFoundException('Ticket not found');
+      throw new NotFoundException('Ticket not found in this tenant');
+    }
+
+    // Verificar que el usuario tiene rol de mantenimiento en este tenant
+    const userTenant = await this.prisma.userTenant.findUnique({
+      where: {
+        userId_tenantId: {
+          userId: userId,
+          tenantId: tenantId
+        }
+      }
+    });
+
+    if (!userTenant || userTenant.role !== UserRole.MAINTENANCE) {
+      throw new ForbiddenException('Only maintenance users can assign tickets to themselves');
     }
 
     return this.prisma.ticket.update({
       where: { id },
       data: {
-        assignedToId: userId, // CAMBIAR a assignedToId
+        assignedToId: userId,
         status: TicketStatus.IN_PROGRESS,
       },
       include: {
@@ -274,7 +362,7 @@ export class TicketsService {
             phone: true,
           },
         },
-        assignedTo: { // CAMBIAR de assignedUser a assignedTo
+        assignedTo: {
           select: {
             id: true,
             name: true,
@@ -282,7 +370,7 @@ export class TicketsService {
             phone: true,
           },
         },
-        building: {
+        property: { // CAMBIADO: building → property
           select: {
             id: true,
             name: true,
@@ -300,17 +388,20 @@ export class TicketsService {
     });
   }
 
-  async completeTicket(id: string, userId: string, userRole: UserRole) {
-    const ticket = await this.prisma.ticket.findUnique({
-      where: { id },
+  async completeTicket(id: string, userId: string, userRole: UserRole, tenantId: string) {
+    const ticket = await this.prisma.ticket.findFirst({
+      where: { 
+        id,
+        tenantId // AGREGADO: filtrar por tenant
+      },
     });
 
     if (!ticket) {
-      throw new NotFoundException('Ticket not found');
+      throw new NotFoundException('Ticket not found in this tenant');
     }
 
     // Verificar permisos
-    await this.verifyTicketAccess(ticket, userId, userRole);
+    await this.verifyTicketAccess(ticket, userId, userRole, tenantId);
 
     return this.prisma.ticket.update({
       where: { id },
@@ -334,7 +425,7 @@ export class TicketsService {
             phone: true,
           },
         },
-        building: {
+        property: { // CAMBIADO: building → property
           select: {
             id: true,
             name: true,
@@ -352,17 +443,20 @@ export class TicketsService {
     });
   }
 
-  async addPhoto(id: string, photoUrl: string, userId: string, userRole: UserRole) {
-    const ticket = await this.prisma.ticket.findUnique({
-      where: { id },
+  async addPhoto(id: string, photoUrl: string, userId: string, userRole: UserRole, tenantId: string) {
+    const ticket = await this.prisma.ticket.findFirst({
+      where: { 
+        id,
+        tenantId // AGREGADO: filtrar por tenant
+      },
     });
 
     if (!ticket) {
-      throw new NotFoundException('Ticket not found');
+      throw new NotFoundException('Ticket not found in this tenant');
     }
 
     // Verificar permisos de acceso
-    await this.verifyTicketAccess(ticket, userId, userRole);
+    await this.verifyTicketAccess(ticket, userId, userRole, tenantId);
 
     const updatedPhotos = [...ticket.photos, photoUrl];
 
@@ -380,7 +474,7 @@ export class TicketsService {
             phone: true,
           },
         },
-        assignedTo: { // CAMBIAR de assignedUser a assignedTo
+        assignedTo: {
           select: {
             id: true,
             name: true,
@@ -388,7 +482,7 @@ export class TicketsService {
             phone: true,
           },
         },
-        building: {
+        property: { // CAMBIADO: building → property
           select: {
             id: true,
             name: true,
@@ -406,22 +500,24 @@ export class TicketsService {
     });
   }
 
-  async getStats(userId: string, userRole: UserRole, buildingId?: string) {
-    const where: any = {};
+  async getStats(userId: string, userRole: UserRole, tenantId: string, propertyId?: string) {
+    const where: any = { tenantId }; // AGREGADO: filtrar por tenant
 
     // Aplicar filtros según el rol
     if (userRole === UserRole.RESIDENT) {
       where.unit = {
         managerId: userId,
+        tenantId: tenantId
       };
     } else if (userRole === UserRole.MAINTENANCE) {
       where.assignedToId = userId;
     } else if (userRole === UserRole.ADMIN) {
-      if (buildingId) {
-        where.buildingId = buildingId;
+      if (propertyId) {
+        where.propertyId = propertyId; // CAMBIADO: buildingId → propertyId
       } else {
-        where.building = {
+        where.property = { // CAMBIADO: building → property
           ownerId: userId,
+          tenantId: tenantId
         };
       }
     }
@@ -442,45 +538,47 @@ export class TicketsService {
     };
   }
 
-  private async verifyTicketAccess(ticket: any, userId: string, userRole: UserRole) {
+  private async verifyTicketAccess(ticket: any, userId: string, userRole: UserRole, tenantId: string) {
     if (userRole === UserRole.ADMIN) {
-      // Admins tienen acceso si son dueños del edificio
-      const building = await this.prisma.building.findFirst({
+      // Admins tienen acceso si son dueños de la propiedad en este tenant
+      const property = await this.prisma.property.findFirst({
         where: {
-          id: ticket.buildingId,
+          id: ticket.propertyId, // CAMBIADO: buildingId → propertyId
           ownerId: userId,
+          tenantId: tenantId
         },
       });
 
-      if (!building) {
-        throw new ForbiddenException('Access denied');
+      if (!property) {
+        throw new ForbiddenException('Access denied to this ticket');
       }
       return true;
     }
 
     if (userRole === UserRole.RESIDENT) {
-      // Residentes tienen acceso si son managers de la unidad
+      // Residentes tienen acceso si son managers de la unidad en este tenant
       const unitAccess = await this.prisma.unit.findFirst({
         where: {
           id: ticket.unitId,
           managerId: userId,
+          tenantId: tenantId
         },
       });
 
       if (!unitAccess) {
-        throw new ForbiddenException('Access denied');
+        throw new ForbiddenException('Access denied to this ticket');
       }
       return true;
     }
 
     if (userRole === UserRole.MAINTENANCE) {
       // Personal de mantenimiento tiene acceso si está asignado al ticket
-      if (ticket.assignedToId !== userId) { // CAMBIAR a assignedToId
-        throw new ForbiddenException('Access denied');
+      if (ticket.assignedToId !== userId) {
+        throw new ForbiddenException('Access denied to this ticket');
       }
       return true;
     }
 
-    throw new ForbiddenException('Access denied');
+    throw new ForbiddenException('Access denied to this ticket');
   }
 }

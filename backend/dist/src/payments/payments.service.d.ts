@@ -1,11 +1,15 @@
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { ProcessPaymentDto } from './dto/process-payment.dto';
 import { UserRole } from '@prisma/client';
 export declare class PaymentsService {
     private prisma;
-    constructor(prisma: PrismaService);
-    create(createPaymentDto: CreatePaymentDto, userId: string): Promise<{
+    private configService;
+    constructor(prisma: PrismaService, configService: ConfigService);
+    create(createPaymentDto: CreatePaymentDto & {
+        tenantId: string;
+    }, userId: string): Promise<{
         user: {
             id: string;
             name: string;
@@ -14,51 +18,32 @@ export declare class PaymentsService {
         unit: {
             number: string;
             id: string;
-            building: {
+            property: {
                 id: string;
                 name: string;
-                isActive: boolean;
-                createdAt: Date;
-                updatedAt: Date;
-                address: string;
-                city: string;
-                settings: import("@prisma/client/runtime/library").JsonValue;
-                ownerId: string;
             };
+            floor: number;
         };
         expense: {
-            building: {
+            property: {
                 id: string;
                 name: string;
-                isActive: boolean;
-                createdAt: Date;
-                updatedAt: Date;
                 address: string;
-                city: string;
-                settings: import("@prisma/client/runtime/library").JsonValue;
-                ownerId: string;
             };
             unit: {
                 number: string;
                 id: string;
-                features: string[];
                 floor: number;
-                type: import(".prisma/client").$Enums.UnitType;
-                area: number;
-                bedrooms: number | null;
-                bathrooms: number | null;
-                isOccupied: boolean;
-                buildingId: string;
-                managerId: string | null;
             };
         } & {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            status: import(".prisma/client").$Enums.ExpenseStatus;
             userId: string | null;
+            tenantId: string;
+            status: import(".prisma/client").$Enums.ExpenseStatus;
             type: import(".prisma/client").$Enums.ExpenseType;
-            buildingId: string;
+            propertyId: string;
             concept: string;
             amount: number;
             dueDate: Date;
@@ -67,8 +52,9 @@ export declare class PaymentsService {
         };
     } & {
         id: string;
-        status: import(".prisma/client").$Enums.PaymentStatus;
         userId: string;
+        tenantId: string;
+        status: import(".prisma/client").$Enums.PaymentStatus;
         amount: number;
         unitId: string;
         date: Date;
@@ -77,7 +63,52 @@ export declare class PaymentsService {
         receiptUrl: string | null;
         expenseId: string;
     }>;
-    findAll(userId: string, userRole: UserRole, buildingId?: string): Promise<({
+    createMercadoPagoPreference(expenseId: string, userId: string, tenantId: string): Promise<{
+        preferenceId: string;
+        init_point: string;
+        sandbox_init_point: string;
+        expense: {
+            id: string;
+            concept: string;
+            amount: number;
+            period: string;
+        };
+        message: string;
+    }>;
+    processMercadoPagoWebhook(webhookData: any): Promise<{
+        success: boolean;
+        message: string;
+        data: {
+            paymentId: any;
+            status: string;
+            amount: number;
+        };
+        type?: undefined;
+    } | {
+        success: boolean;
+        message: string;
+        type: any;
+        data?: undefined;
+    } | {
+        success: boolean;
+        message: string;
+        data?: undefined;
+        type?: undefined;
+    }>;
+    processPayment(processPaymentDto: ProcessPaymentDto & {
+        tenantId: string;
+    }, userId: string): Promise<{
+        preferenceId: string;
+        init_point: string;
+        sandbox_init_point: string;
+        expense: {
+            id: string;
+            concept: string;
+            amount: number;
+            period: string;
+        };
+        message: string;
+    } | ({
         user: {
             id: string;
             name: string;
@@ -86,51 +117,32 @@ export declare class PaymentsService {
         unit: {
             number: string;
             id: string;
-            building: {
+            property: {
                 id: string;
                 name: string;
-                isActive: boolean;
-                createdAt: Date;
-                updatedAt: Date;
-                address: string;
-                city: string;
-                settings: import("@prisma/client/runtime/library").JsonValue;
-                ownerId: string;
             };
+            floor: number;
         };
         expense: {
-            building: {
+            property: {
                 id: string;
                 name: string;
-                isActive: boolean;
-                createdAt: Date;
-                updatedAt: Date;
                 address: string;
-                city: string;
-                settings: import("@prisma/client/runtime/library").JsonValue;
-                ownerId: string;
             };
             unit: {
                 number: string;
                 id: string;
-                features: string[];
                 floor: number;
-                type: import(".prisma/client").$Enums.UnitType;
-                area: number;
-                bedrooms: number | null;
-                bathrooms: number | null;
-                isOccupied: boolean;
-                buildingId: string;
-                managerId: string | null;
             };
         } & {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            status: import(".prisma/client").$Enums.ExpenseStatus;
             userId: string | null;
+            tenantId: string;
+            status: import(".prisma/client").$Enums.ExpenseStatus;
             type: import(".prisma/client").$Enums.ExpenseType;
-            buildingId: string;
+            propertyId: string;
             concept: string;
             amount: number;
             dueDate: Date;
@@ -139,8 +151,63 @@ export declare class PaymentsService {
         };
     } & {
         id: string;
-        status: import(".prisma/client").$Enums.PaymentStatus;
         userId: string;
+        tenantId: string;
+        status: import(".prisma/client").$Enums.PaymentStatus;
+        amount: number;
+        unitId: string;
+        date: Date;
+        method: import(".prisma/client").$Enums.PaymentMethod;
+        transactionId: string | null;
+        receiptUrl: string | null;
+        expenseId: string;
+    })>;
+    findAll(userId: string, userRole: UserRole, tenantId: string, propertyId?: string): Promise<({
+        user: {
+            id: string;
+            name: string;
+            email: string;
+        };
+        unit: {
+            number: string;
+            id: string;
+            property: {
+                id: string;
+                name: string;
+            };
+            floor: number;
+        };
+        expense: {
+            property: {
+                id: string;
+                name: string;
+                address: string;
+            };
+            unit: {
+                number: string;
+                id: string;
+                floor: number;
+            };
+        } & {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            userId: string | null;
+            tenantId: string;
+            status: import(".prisma/client").$Enums.ExpenseStatus;
+            type: import(".prisma/client").$Enums.ExpenseType;
+            propertyId: string;
+            concept: string;
+            amount: number;
+            dueDate: Date;
+            period: string | null;
+            unitId: string | null;
+        };
+    } & {
+        id: string;
+        userId: string;
+        tenantId: string;
+        status: import(".prisma/client").$Enums.PaymentStatus;
         amount: number;
         unitId: string;
         date: Date;
@@ -149,7 +216,7 @@ export declare class PaymentsService {
         receiptUrl: string | null;
         expenseId: string;
     })[]>;
-    findOne(id: string, userId: string, userRole: UserRole): Promise<{
+    findOne(id: string, userId: string, userRole: UserRole, tenantId: string): Promise<{
         user: {
             id: string;
             name: string;
@@ -158,51 +225,32 @@ export declare class PaymentsService {
         unit: {
             number: string;
             id: string;
-            building: {
+            property: {
                 id: string;
                 name: string;
-                isActive: boolean;
-                createdAt: Date;
-                updatedAt: Date;
-                address: string;
-                city: string;
-                settings: import("@prisma/client/runtime/library").JsonValue;
-                ownerId: string;
             };
+            floor: number;
         };
         expense: {
-            building: {
+            property: {
                 id: string;
                 name: string;
-                isActive: boolean;
-                createdAt: Date;
-                updatedAt: Date;
                 address: string;
-                city: string;
-                settings: import("@prisma/client/runtime/library").JsonValue;
-                ownerId: string;
             };
             unit: {
                 number: string;
                 id: string;
-                features: string[];
                 floor: number;
-                type: import(".prisma/client").$Enums.UnitType;
-                area: number;
-                bedrooms: number | null;
-                bathrooms: number | null;
-                isOccupied: boolean;
-                buildingId: string;
-                managerId: string | null;
             };
         } & {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            status: import(".prisma/client").$Enums.ExpenseStatus;
             userId: string | null;
+            tenantId: string;
+            status: import(".prisma/client").$Enums.ExpenseStatus;
             type: import(".prisma/client").$Enums.ExpenseType;
-            buildingId: string;
+            propertyId: string;
             concept: string;
             amount: number;
             dueDate: Date;
@@ -211,8 +259,9 @@ export declare class PaymentsService {
         };
     } & {
         id: string;
-        status: import(".prisma/client").$Enums.PaymentStatus;
         userId: string;
+        tenantId: string;
+        status: import(".prisma/client").$Enums.PaymentStatus;
         amount: number;
         unitId: string;
         date: Date;
@@ -221,84 +270,16 @@ export declare class PaymentsService {
         receiptUrl: string | null;
         expenseId: string;
     }>;
-    processPayment(processPaymentDto: ProcessPaymentDto, userId: string): Promise<{
-        user: {
-            id: string;
-            name: string;
-            email: string;
-        };
-        unit: {
-            number: string;
-            id: string;
-            building: {
-                id: string;
-                name: string;
-                isActive: boolean;
-                createdAt: Date;
-                updatedAt: Date;
-                address: string;
-                city: string;
-                settings: import("@prisma/client/runtime/library").JsonValue;
-                ownerId: string;
-            };
-        };
-        expense: {
-            building: {
-                id: string;
-                name: string;
-                isActive: boolean;
-                createdAt: Date;
-                updatedAt: Date;
-                address: string;
-                city: string;
-                settings: import("@prisma/client/runtime/library").JsonValue;
-                ownerId: string;
-            };
-            unit: {
-                number: string;
-                id: string;
-                features: string[];
-                floor: number;
-                type: import(".prisma/client").$Enums.UnitType;
-                area: number;
-                bedrooms: number | null;
-                bathrooms: number | null;
-                isOccupied: boolean;
-                buildingId: string;
-                managerId: string | null;
-            };
-        } & {
-            id: string;
-            createdAt: Date;
-            updatedAt: Date;
-            status: import(".prisma/client").$Enums.ExpenseStatus;
-            userId: string | null;
-            type: import(".prisma/client").$Enums.ExpenseType;
-            buildingId: string;
-            concept: string;
-            amount: number;
-            dueDate: Date;
-            period: string | null;
-            unitId: string | null;
-        };
-    } & {
-        id: string;
-        status: import(".prisma/client").$Enums.PaymentStatus;
-        userId: string;
-        amount: number;
-        unitId: string;
-        date: Date;
-        method: import(".prisma/client").$Enums.PaymentMethod;
-        transactionId: string | null;
-        receiptUrl: string | null;
-        expenseId: string;
-    }>;
-    getPaymentStats(userId: string, userRole: UserRole, buildingId?: string): Promise<{
+    getPaymentStats(userId: string, userRole: UserRole, tenantId: string, propertyId?: string): Promise<{
         totalPayments: number;
         totalAmount: number;
         monthlyRevenue: number;
+        completedPayments: number;
+        successRate: number;
     }>;
     private simulatePayment;
     private updateExpenseStatus;
     private verifyPaymentAccess;
+    private mapMercadoPagoStatus;
+    private sendPaymentNotification;
 }

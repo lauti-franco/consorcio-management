@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProcessPaymentDto = void 0;
 const class_validator_1 = require("class-validator");
 const swagger_1 = require("@nestjs/swagger");
+const client_1 = require("@prisma/client");
 class ProcessPaymentDto {
 }
 exports.ProcessPaymentDto = ProcessPaymentDto;
@@ -22,9 +23,15 @@ __decorate([
     __metadata("design:type", String)
 ], ProcessPaymentDto.prototype, "expenseId", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ enum: ['credit_card', 'debit_card', 'transfer', 'cash'], example: 'credit_card' }),
-    (0, class_validator_1.IsEnum)(['credit_card', 'debit_card', 'transfer', 'cash']),
+    (0, swagger_1.ApiProperty)({ enum: client_1.PaymentMethod, example: client_1.PaymentMethod.CARD }),
+    (0, class_validator_1.IsEnum)(client_1.PaymentMethod),
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], ProcessPaymentDto.prototype, "paymentMethod", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ enum: ['MERCADOPAGO', 'MANUAL'], example: 'MERCADOPAGO', required: false }),
+    (0, class_validator_1.IsEnum)(['MERCADOPAGO', 'MANUAL']),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], ProcessPaymentDto.prototype, "processor", void 0);
 //# sourceMappingURL=process-payment.dto.js.map

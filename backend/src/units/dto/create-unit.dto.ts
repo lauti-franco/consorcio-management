@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, IsEnum, IsArray } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsEnum, IsArray, IsBoolean } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { UnitType } from '@prisma/client';
 
@@ -30,6 +30,11 @@ export class CreateUnitDto {
   bathrooms?: number;
 
   @ApiProperty({ required: false })
+  @IsBoolean()
+  @IsOptional()
+  isOccupied?: boolean; // AGREGADO: campo que existe en el schema
+
+  @ApiProperty({ required: false })
   @IsArray()
   @IsOptional()
   features?: string[];
@@ -41,5 +46,5 @@ export class CreateUnitDto {
 
   @ApiProperty()
   @IsString()
-  buildingId: string;
+  propertyId: string; // CAMBIADO: buildingId → propertyId
 }

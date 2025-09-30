@@ -7,10 +7,12 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { RefreshTokenStrategy } from './strategies/refresh-token.strategy';
 import { UsersModule } from '../users/users.module';
+import { PrismaModule } from '../prisma/prisma.module'; // AGREGAR ESTE IMPORT
 
 @Module({
   imports: [
     UsersModule,
+    PrismaModule, // AGREGAR ESTE MÓDULO
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

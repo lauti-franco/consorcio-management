@@ -1,4 +1,4 @@
-
+// src/auth/auth.service.ts - ACTUALIZADO PARA MULTI-TENANT
 import { Injectable, UnauthorizedException, BadRequestException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
@@ -6,6 +6,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { UserRole } from '@prisma/client';
+// Agrega este import en la parte superior
+
+
+
 
 @Injectable()
 export class AuthService {
@@ -15,7 +19,7 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto) {
-    const { email, password, name, role } = registerDto;
+    const { email, password, name, role, tenantId } = registerDto;
 
     // Verificar si el usuario ya existe
     const existingUser = await this.prisma.user.findUnique({
@@ -26,14 +30,13 @@ export class AuthService {
       throw new ConflictException('El usuario ya existe');
     }
 
-    // Crear usuario - SIN buildingId (ya no existe en el schema)
+    // Crear usuario
     const user = await this.prisma.user.create({
       data: {
         name,
         email,
         passwordHash: await bcrypt.hash(password, 12),
         role: role || UserRole.RESIDENT,
-        // REMOVED: buildingId ya no existe en el schema
       },
       select: {
         id: true,
@@ -49,13 +52,40 @@ export class AuthService {
       },
     });
 
-    // Si es ADMIN, crear suscripción automáticamente
-    if (role === UserRole.ADMIN) {
+    // Si se proporcionó tenantId, asociar usuario al tenant
+    if (tenantId) {
+      await this.prisma.userTenant.create({
+        data: {
+          userId: user.id,
+          tenantId: tenantId,
+          role: role || UserRole.RESIDENT,
+        },
+      });
+    }
+
+    // Si es ADMIN y no tiene tenant, crear tenant por defecto
+    if (role === UserRole.ADMIN && !tenantId) {
+      const defaultTenant = await this.prisma.tenant.create({
+        data: {
+          name: `${name}'s Consorcio`,
+          description: 'Tenant por defecto',
+        },
+      });
+
+      await this.prisma.userTenant.create({
+        data: {
+          userId: user.id,
+          tenantId: defaultTenant.id,
+          role: UserRole.ADMIN,
+        },
+      });
+
+      // Crear suscripción para el admin
       await this.prisma.subscription.create({
         data: {
           plan: 'STARTER',
           status: 'ACTIVE',
-          maxBuildings: 1,
+          maxProperties: 1, // CAMBIADO: maxBuildings → maxProperties
           maxUsers: 10,
           features: {
             advancedReports: false,
@@ -70,34 +100,57 @@ export class AuthService {
       });
     }
 
-    const tokens = await this.generateTokens(user.id);
+    const tokens = await this.generateTokens(user.id, tenantId);
     
     return { 
       message: 'Usuario registrado exitosamente',
       data: { 
         user, 
-        ...tokens 
+        ...tokens,
+        tenantId: tenantId || (role === UserRole.ADMIN ? null : tenantId)
       } 
     };
   }
 
   async login(loginDto: LoginDto) {
-    const { email, password } = loginDto;
+    const { email, password, tenantId } = loginDto;
 
-    // Buscar usuario incluyendo relaciones necesarias
+    // Buscar usuario
     const user = await this.prisma.user.findUnique({
       where: { email },
       include: { 
         subscription: true,
         managedUnits: {
           include: {
-            building: true,
+            property: { // CAMBIADO: building → property
+              select: {
+                id: true,
+                name: true,
+                tenantId: true
+              }
+            },
           },
-          take: 5, // Limitar unidades para no sobrecargar
+          take: 5,
         },
-        ownedBuildings: {
-          take: 5, // Limitar edificios para no sobrecargar
+        ownedProperties: { // CAMBIADO: ownedBuildings → ownedProperties
+          take: 5,
+          select: {
+            id: true,
+            name: true,
+            tenantId: true
+          }
         },
+        userTenants: { // AGREGADO: para obtener tenants del usuario
+          include: {
+            tenant: {
+              select: {
+                id: true,
+                name: true,
+                description: true
+              }
+            }
+          }
+        }
       },
     });
 
@@ -105,15 +158,37 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    // Verificar si el usuario está activo
     if (!user.isActive) {
       throw new UnauthorizedException('La cuenta está desactivada');
     }
 
-    // Comparar contraseña
+    // Verificar contraseña
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Credenciales inválidas');
+    }
+
+    // Si se proporcionó tenantId, verificar que el usuario tenga acceso
+    let selectedTenantId = tenantId;
+    if (tenantId) {
+      const userTenant = await this.prisma.userTenant.findUnique({
+        where: {
+          userId_tenantId: {
+            userId: user.id,
+            tenantId: tenantId
+          }
+        }
+      });
+
+      if (!userTenant) {
+        throw new UnauthorizedException('Usuario no tiene acceso a este tenant');
+      }
+    } else {
+      // Si no hay tenantId, usar el primer tenant disponible
+      const userTenant = user.userTenants[0];
+      if (userTenant) {
+        selectedTenantId = userTenant.tenantId;
+      }
     }
 
     // Actualizar último login
@@ -122,7 +197,7 @@ export class AuthService {
       data: { lastLogin: new Date() },
     });
 
-    const tokens = await this.generateTokens(user.id);
+    const tokens = await this.generateTokens(user.id, selectedTenantId);
     
     // Remover passwordHash de la respuesta
     const { passwordHash, ...userWithoutPassword } = user;
@@ -132,6 +207,7 @@ export class AuthService {
       data: {
         user: userWithoutPassword,
         ...tokens,
+        tenantId: selectedTenantId
       },
     };
   }
@@ -188,12 +264,11 @@ export class AuthService {
       where: { id: tokenRecord.id },
     });
 
-    // Generar nuevos tokens
+    // Generar nuevos tokens (sin tenantId específico)
     return this.generateTokens(tokenRecord.userId);
   }
 
   async logout(userId: string) {
-    // Eliminar todos los refresh tokens del usuario
     await this.prisma.refreshToken.deleteMany({
       where: { userId },
     });
@@ -210,13 +285,11 @@ export class AuthService {
       throw new UnauthorizedException('Usuario no encontrado');
     }
 
-    // Verificar contraseña actual
     const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!isCurrentPasswordValid) {
       throw new BadRequestException('Contraseña actual incorrecta');
     }
 
-    // Actualizar contraseña
     await this.prisma.user.update({
       where: { id: userId },
       data: {
@@ -227,8 +300,11 @@ export class AuthService {
     return { message: 'Contraseña actualizada exitosamente' };
   }
 
-  private async generateTokens(userId: string) {
-    const payload = { sub: userId };
+  private async generateTokens(userId: string, tenantId?: string) {
+    const payload = { 
+      sub: userId,
+      tenantId: tenantId // ← INCLUIR tenantId EN JWT
+    };
     
     const accessToken = this.jwtService.sign(payload, { 
       expiresIn: process.env.JWT_EXPIRES_IN || '7d' 
@@ -239,7 +315,6 @@ export class AuthService {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30); // 30 días
 
-    // Guardar refresh token
     await this.prisma.refreshToken.create({
       data: {
         userId,

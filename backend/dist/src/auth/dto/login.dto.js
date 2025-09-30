@@ -26,4 +26,14 @@ __decorate([
     (0, class_validator_1.MinLength)(6),
     __metadata("design:type", String)
 ], LoginDto.prototype, "password", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: 'clt2n9z8g000008l49v9o1x2z',
+        description: 'Tenant ID (optional for initial login)',
+        required: false
+    }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], LoginDto.prototype, "tenantId", void 0);
 //# sourceMappingURL=login.dto.js.map

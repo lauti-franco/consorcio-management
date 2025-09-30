@@ -50,6 +50,12 @@ __decorate([
 ], CreateUnitDto.prototype, "bathrooms", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], CreateUnitDto.prototype, "isOccupied", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
     (0, class_validator_1.IsArray)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Array)
@@ -64,5 +70,5 @@ __decorate([
     (0, swagger_1.ApiProperty)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], CreateUnitDto.prototype, "buildingId", void 0);
+], CreateUnitDto.prototype, "propertyId", void 0);
 //# sourceMappingURL=create-unit.dto.js.map

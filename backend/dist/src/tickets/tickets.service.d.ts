@@ -5,14 +5,16 @@ import { UserRole } from '@prisma/client';
 export declare class TicketsService {
     private prisma;
     constructor(prisma: PrismaService);
-    create(createTicketDto: CreateTicketDto, userId: string): Promise<{
+    create(createTicketDto: CreateTicketDto & {
+        tenantId: string;
+    }, userId: string): Promise<{
         user: {
             id: string;
             name: string;
             email: string;
             phone: string;
         };
-        building: {
+        property: {
             id: string;
             name: string;
             address: string;
@@ -30,27 +32,28 @@ export declare class TicketsService {
         };
     } & {
         id: string;
+        description: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.TicketStatus;
         userId: string;
-        buildingId: string;
+        tenantId: string;
+        status: import(".prisma/client").$Enums.TicketStatus;
+        propertyId: string;
         unitId: string | null;
         title: string;
-        description: string;
         priority: import(".prisma/client").$Enums.Priority;
         category: string;
         photos: string[];
         assignedToId: string | null;
     }>;
-    findAll(userId: string, userRole: UserRole, buildingId?: string): Promise<({
+    findAll(userId: string, userRole: UserRole, tenantId: string, propertyId?: string): Promise<({
         user: {
             id: string;
             name: string;
             email: string;
             phone: string;
         };
-        building: {
+        property: {
             id: string;
             name: string;
             address: string;
@@ -68,27 +71,28 @@ export declare class TicketsService {
         };
     } & {
         id: string;
+        description: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.TicketStatus;
         userId: string;
-        buildingId: string;
+        tenantId: string;
+        status: import(".prisma/client").$Enums.TicketStatus;
+        propertyId: string;
         unitId: string | null;
         title: string;
-        description: string;
         priority: import(".prisma/client").$Enums.Priority;
         category: string;
         photos: string[];
         assignedToId: string | null;
     })[]>;
-    findOne(id: string, userId: string, userRole: UserRole): Promise<{
+    findOne(id: string, userId: string, userRole: UserRole, tenantId: string): Promise<{
         user: {
             id: string;
             name: string;
             email: string;
             phone: string;
         };
-        building: {
+        property: {
             id: string;
             name: string;
             address: string;
@@ -106,27 +110,28 @@ export declare class TicketsService {
         };
     } & {
         id: string;
+        description: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.TicketStatus;
         userId: string;
-        buildingId: string;
+        tenantId: string;
+        status: import(".prisma/client").$Enums.TicketStatus;
+        propertyId: string;
         unitId: string | null;
         title: string;
-        description: string;
         priority: import(".prisma/client").$Enums.Priority;
         category: string;
         photos: string[];
         assignedToId: string | null;
     }>;
-    update(id: string, updateTicketDto: UpdateTicketDto, userId: string, userRole: UserRole): Promise<{
+    update(id: string, updateTicketDto: UpdateTicketDto, userId: string, userRole: UserRole, tenantId: string): Promise<{
         user: {
             id: string;
             name: string;
             email: string;
             phone: string;
         };
-        building: {
+        property: {
             id: string;
             name: string;
             address: string;
@@ -144,42 +149,44 @@ export declare class TicketsService {
         };
     } & {
         id: string;
+        description: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.TicketStatus;
         userId: string;
-        buildingId: string;
+        tenantId: string;
+        status: import(".prisma/client").$Enums.TicketStatus;
+        propertyId: string;
         unitId: string | null;
         title: string;
-        description: string;
         priority: import(".prisma/client").$Enums.Priority;
         category: string;
         photos: string[];
         assignedToId: string | null;
     }>;
-    remove(id: string, userId: string, userRole: UserRole): Promise<{
+    remove(id: string, userId: string, userRole: UserRole, tenantId: string): Promise<{
         id: string;
+        description: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.TicketStatus;
         userId: string;
-        buildingId: string;
+        tenantId: string;
+        status: import(".prisma/client").$Enums.TicketStatus;
+        propertyId: string;
         unitId: string | null;
         title: string;
-        description: string;
         priority: import(".prisma/client").$Enums.Priority;
         category: string;
         photos: string[];
         assignedToId: string | null;
     }>;
-    assignToMe(id: string, userId: string): Promise<{
+    assignToMe(id: string, userId: string, tenantId: string): Promise<{
         user: {
             id: string;
             name: string;
             email: string;
             phone: string;
         };
-        building: {
+        property: {
             id: string;
             name: string;
             address: string;
@@ -197,27 +204,28 @@ export declare class TicketsService {
         };
     } & {
         id: string;
+        description: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.TicketStatus;
         userId: string;
-        buildingId: string;
+        tenantId: string;
+        status: import(".prisma/client").$Enums.TicketStatus;
+        propertyId: string;
         unitId: string | null;
         title: string;
-        description: string;
         priority: import(".prisma/client").$Enums.Priority;
         category: string;
         photos: string[];
         assignedToId: string | null;
     }>;
-    completeTicket(id: string, userId: string, userRole: UserRole): Promise<{
+    completeTicket(id: string, userId: string, userRole: UserRole, tenantId: string): Promise<{
         user: {
             id: string;
             name: string;
             email: string;
             phone: string;
         };
-        building: {
+        property: {
             id: string;
             name: string;
             address: string;
@@ -235,27 +243,28 @@ export declare class TicketsService {
         };
     } & {
         id: string;
+        description: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.TicketStatus;
         userId: string;
-        buildingId: string;
+        tenantId: string;
+        status: import(".prisma/client").$Enums.TicketStatus;
+        propertyId: string;
         unitId: string | null;
         title: string;
-        description: string;
         priority: import(".prisma/client").$Enums.Priority;
         category: string;
         photos: string[];
         assignedToId: string | null;
     }>;
-    addPhoto(id: string, photoUrl: string, userId: string, userRole: UserRole): Promise<{
+    addPhoto(id: string, photoUrl: string, userId: string, userRole: UserRole, tenantId: string): Promise<{
         user: {
             id: string;
             name: string;
             email: string;
             phone: string;
         };
-        building: {
+        property: {
             id: string;
             name: string;
             address: string;
@@ -273,20 +282,21 @@ export declare class TicketsService {
         };
     } & {
         id: string;
+        description: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.TicketStatus;
         userId: string;
-        buildingId: string;
+        tenantId: string;
+        status: import(".prisma/client").$Enums.TicketStatus;
+        propertyId: string;
         unitId: string | null;
         title: string;
-        description: string;
         priority: import(".prisma/client").$Enums.Priority;
         category: string;
         photos: string[];
         assignedToId: string | null;
     }>;
-    getStats(userId: string, userRole: UserRole, buildingId?: string): Promise<{
+    getStats(userId: string, userRole: UserRole, tenantId: string, propertyId?: string): Promise<{
         total: number;
         open: number;
         inProgress: number;

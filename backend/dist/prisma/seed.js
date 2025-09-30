@@ -11,12 +11,22 @@ async function main() {
         await prisma.ticket.deleteMany();
         await prisma.task.deleteMany();
         await prisma.unit.deleteMany();
-        await prisma.building.deleteMany();
+        await prisma.property.deleteMany();
+        await prisma.userTenant.deleteMany();
+        await prisma.tenant.deleteMany();
         await prisma.subscription.deleteMany();
         await prisma.user.deleteMany();
         await prisma.refreshToken.deleteMany();
         await prisma.file.deleteMany();
         console.log('Database cleaned');
+        const tenant = await prisma.tenant.create({
+            data: {
+                name: 'Consorcio Edificio Central',
+                description: 'Edificio principal de administración',
+                isActive: true
+            }
+        });
+        console.log('Tenant created:', tenant.name);
         const adminPasswordHash = await bcrypt.hash('admin123', 12);
         const admin = await prisma.user.create({
             data: {
@@ -27,11 +37,19 @@ async function main() {
             },
         });
         console.log('Admin user created:', admin.email);
+        await prisma.userTenant.create({
+            data: {
+                userId: admin.id,
+                tenantId: tenant.id,
+                role: client_1.UserRole.ADMIN
+            }
+        });
+        console.log('Admin associated with tenant');
         const subscription = await prisma.subscription.create({
             data: {
                 plan: 'PROFESSIONAL',
                 status: 'ACTIVE',
-                maxBuildings: 5,
+                maxProperties: 5,
                 maxUsers: 50,
                 features: {
                     advancedReports: true,
@@ -45,12 +63,13 @@ async function main() {
             },
         });
         console.log('Subscription created for admin');
-        const building = await prisma.building.create({
+        const property = await prisma.property.create({
             data: {
                 name: 'Edificio Central',
                 address: 'Av. Principal 123',
                 city: 'Buenos Aires',
                 ownerId: admin.id,
+                tenantId: tenant.id,
                 settings: {
                     currency: 'ARS',
                     language: 'es',
@@ -58,7 +77,7 @@ async function main() {
                 }
             },
         });
-        console.log('Building created:', building.name);
+        console.log('Property created:', property.name);
         const unit1 = await prisma.unit.create({
             data: {
                 number: '4A',
@@ -68,7 +87,8 @@ async function main() {
                 bedrooms: 2,
                 bathrooms: 1,
                 features: ['Balcón', 'Cocina equipada'],
-                buildingId: building.id,
+                propertyId: property.id,
+                tenantId: tenant.id,
                 isOccupied: true,
             },
         });
@@ -81,7 +101,8 @@ async function main() {
                 bedrooms: 3,
                 bathrooms: 2,
                 features: ['Terraza', 'Vista al mar'],
-                buildingId: building.id,
+                propertyId: property.id,
+                tenantId: tenant.id,
                 isOccupied: true,
             },
         });
@@ -94,6 +115,13 @@ async function main() {
                 passwordHash: maintenancePasswordHash,
                 role: client_1.UserRole.MAINTENANCE,
             },
+        });
+        await prisma.userTenant.create({
+            data: {
+                userId: maintenance.id,
+                tenantId: tenant.id,
+                role: client_1.UserRole.MAINTENANCE
+            }
         });
         console.log('Maintenance user created:', maintenance.email);
         const residentPasswordHash = await bcrypt.hash('resi123', 12);
@@ -108,6 +136,13 @@ async function main() {
                 }
             },
         });
+        await prisma.userTenant.create({
+            data: {
+                userId: resident.id,
+                tenantId: tenant.id,
+                role: client_1.UserRole.RESIDENT
+            }
+        });
         const resident2PasswordHash = await bcrypt.hash('resi123', 12);
         const resident2 = await prisma.user.create({
             data: {
@@ -120,6 +155,13 @@ async function main() {
                 }
             },
         });
+        await prisma.userTenant.create({
+            data: {
+                userId: resident2.id,
+                tenantId: tenant.id,
+                role: client_1.UserRole.RESIDENT
+            }
+        });
         console.log('Resident users created');
         const expense1 = await prisma.expense.create({
             data: {
@@ -129,7 +171,8 @@ async function main() {
                 period: '2024-01',
                 type: client_1.ExpenseType.ORDINARY,
                 status: client_1.ExpenseStatus.OPEN,
-                buildingId: building.id,
+                propertyId: property.id,
+                tenantId: tenant.id,
                 unitId: unit1.id,
             },
         });
@@ -141,7 +184,8 @@ async function main() {
                 period: '2024-01',
                 type: client_1.ExpenseType.FUND,
                 status: client_1.ExpenseStatus.OPEN,
-                buildingId: building.id,
+                propertyId: property.id,
+                tenantId: tenant.id,
                 unitId: unit2.id,
             },
         });
@@ -154,7 +198,8 @@ async function main() {
                 priority: client_1.Priority.HIGH,
                 category: 'PLUMBING',
                 userId: resident.id,
-                buildingId: building.id,
+                propertyId: property.id,
+                tenantId: tenant.id,
                 unitId: unit1.id,
                 assignedToId: maintenance.id,
                 photos: [],
@@ -168,7 +213,8 @@ async function main() {
                 priority: client_1.Priority.MEDIUM,
                 category: 'ELECTRICAL',
                 userId: resident2.id,
-                buildingId: building.id,
+                propertyId: property.id,
+                tenantId: tenant.id,
                 unitId: unit2.id,
                 assignedToId: maintenance.id,
                 photos: [],
@@ -183,7 +229,8 @@ async function main() {
                 priority: client_1.Priority.HIGH,
                 assignedToId: maintenance.id,
                 createdById: admin.id,
-                buildingId: building.id,
+                propertyId: property.id,
+                tenantId: tenant.id,
                 dueDate: new Date('2024-01-20'),
                 photos: [],
             },
@@ -196,7 +243,8 @@ async function main() {
                 priority: client_1.Priority.MEDIUM,
                 assignedToId: maintenance.id,
                 createdById: admin.id,
-                buildingId: building.id,
+                propertyId: property.id,
+                tenantId: tenant.id,
                 dueDate: new Date('2024-02-01'),
                 photos: [],
             },
@@ -210,6 +258,7 @@ async function main() {
                 expenseId: expense1.id,
                 userId: resident.id,
                 unitId: unit1.id,
+                tenantId: tenant.id,
                 receiptUrl: 'https://example.com/receipts/001',
             },
         });
@@ -221,13 +270,15 @@ async function main() {
                 expenseId: expense2.id,
                 userId: resident2.id,
                 unitId: unit2.id,
+                tenantId: tenant.id,
             },
         });
         console.log('Payments created');
         console.log('✅ Seed completed successfully!');
         console.log('📊 Summary:');
+        console.log(`- Tenant: ${tenant.name}`);
         console.log(`- Users: 4 (Admin, Maintenance, 2 Residents)`);
-        console.log(`- Building: 1 with 2 units`);
+        console.log(`- Property: 1 with 2 units`);
         console.log(`- Expenses: 2`);
         console.log(`- Tickets: 2`);
         console.log(`- Tasks: 2`);

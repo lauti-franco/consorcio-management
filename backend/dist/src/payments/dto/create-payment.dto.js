@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreatePaymentDto = void 0;
 const class_validator_1 = require("class-validator");
 const swagger_1 = require("@nestjs/swagger");
+const client_1 = require("@prisma/client");
 class CreatePaymentDto {
 }
 exports.CreatePaymentDto = CreatePaymentDto;
@@ -22,8 +23,8 @@ __decorate([
     __metadata("design:type", Number)
 ], CreatePaymentDto.prototype, "amount", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: 'transfer' }),
-    (0, class_validator_1.IsString)(),
+    (0, swagger_1.ApiProperty)({ enum: client_1.PaymentMethod, example: client_1.PaymentMethod.TRANSFER }),
+    (0, class_validator_1.IsEnum)(client_1.PaymentMethod),
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreatePaymentDto.prototype, "method", void 0);

@@ -1,6 +1,6 @@
 import { IsString, IsNotEmpty, IsOptional, IsArray, IsEnum } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { Priority } from '@prisma/client';
+import { Priority, TicketStatus } from '@prisma/client';
 
 export class CreateTicketDto {
   @ApiProperty({ example: 'Fuga de agua en baño' })
@@ -18,15 +18,20 @@ export class CreateTicketDto {
   @IsOptional()
   priority?: Priority;
 
+  @ApiProperty({ enum: TicketStatus, example: TicketStatus.OPEN, required: false })
+  @IsEnum(TicketStatus)
+  @IsOptional()
+  status?: TicketStatus;
+
   @ApiProperty({ example: 'PLUMBING' })
   @IsString()
   @IsNotEmpty()
   category: string;
 
-  @ApiProperty({ example: 'building-id' })
+  @ApiProperty({ example: 'property-id' })
   @IsString()
   @IsNotEmpty()
-  buildingId: string;
+  propertyId: string; // CAMBIADO: buildingId → propertyId
 
   @ApiProperty({ example: 'unit-id', required: false })
   @IsString()

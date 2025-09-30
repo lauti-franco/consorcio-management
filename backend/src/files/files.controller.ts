@@ -1,9 +1,8 @@
-import { Controller, Get, Post, Param, Delete, UseGuards, Req, UseInterceptors, UploadedFile, Body } from '@nestjs/common';
+import { Controller, Get, Post, Param, Delete, UseGuards, Req, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { FilesService } from './files.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { UploadFileDto } from './dto/upload-file.dto';
 
 @ApiTags('files')
 @Controller('files')
@@ -22,24 +21,52 @@ export class FilesController {
     @UploadedFile() file: Express.Multer.File,
     @Req() req: any
   ) {
-    return this.filesService.uploadFile(file, req.user.id);
+    // Obtener tenantId del usuario autenticado
+    const tenantId = req.user.tenantId || req.user.userTenants?.[0]?.tenantId;
+    
+    if (!tenantId) {
+      throw new Error('Tenant ID not found for user');
+    }
+
+    return this.filesService.uploadFile(file, req.user.id, tenantId);
   }
 
   @Get()
   @ApiOperation({ summary: 'Get all user files' })
   findAll(@Req() req: any) {
-    return this.filesService.findAll(req.user.id);
+    // Obtener tenantId del usuario autenticado
+    const tenantId = req.user.tenantId || req.user.userTenants?.[0]?.tenantId;
+    
+    if (!tenantId) {
+      throw new Error('Tenant ID not found for user');
+    }
+
+    return this.filesService.findAll(req.user.id, tenantId);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get file by ID' })
   findOne(@Param('id') id: string, @Req() req: any) {
-    return this.filesService.findOne(id, req.user.id);
+    // Obtener tenantId del usuario autenticado
+    const tenantId = req.user.tenantId || req.user.userTenants?.[0]?.tenantId;
+    
+    if (!tenantId) {
+      throw new Error('Tenant ID not found for user');
+    }
+
+    return this.filesService.findOne(id, req.user.id, tenantId);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete file' })
   remove(@Param('id') id: string, @Req() req: any) {
-    return this.filesService.remove(id, req.user.id);
+    // Obtener tenantId del usuario autenticado
+    const tenantId = req.user.tenantId || req.user.userTenants?.[0]?.tenantId;
+    
+    if (!tenantId) {
+      throw new Error('Tenant ID not found for user');
+    }
+
+    return this.filesService.remove(id, req.user.id, tenantId);
   }
 }

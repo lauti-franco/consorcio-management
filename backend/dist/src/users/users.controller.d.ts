@@ -1,34 +1,41 @@
 import { Request } from 'express';
-import { UserRole } from '../common/enums/user-role.enum';
+import { UserRole } from '@prisma/client';
 import { UsersService } from './users.service';
 export declare class UsersController {
     private usersService;
     constructor(usersService: UsersService);
-    findAll(req: Request, role?: UserRole, buildingId?: string): Promise<{
+    findAll(req: Request, role?: UserRole, propertyId?: string): Promise<{
         id: string;
         name: string;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        userTenants: {
+            tenant: {
+                id: string;
+                name: string;
+            };
+            role: import(".prisma/client").$Enums.UserRole;
+        }[];
         email: string;
         role: import(".prisma/client").$Enums.UserRole;
         phone: string;
         avatar: string;
-        isActive: boolean;
         emailVerified: boolean;
         lastLogin: Date;
-        createdAt: Date;
-        updatedAt: Date;
         subscription: {
             plan: import(".prisma/client").$Enums.PlanType;
             status: import(".prisma/client").$Enums.SubscriptionStatus;
             currentPeriodEnd: Date;
         };
-        ownedBuildings: {
+        ownedProperties: {
             id: string;
             name: string;
         }[];
         managedUnits: {
             number: string;
             id: string;
-            building: {
+            property: {
                 id: string;
                 name: string;
             };
@@ -37,15 +44,22 @@ export declare class UsersController {
     findOne(id: string, req: Request): Promise<{
         id: string;
         name: string;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        userTenants: {
+            tenant: {
+                id: string;
+                name: string;
+            };
+            role: import(".prisma/client").$Enums.UserRole;
+        }[];
         email: string;
         role: import(".prisma/client").$Enums.UserRole;
         phone: string;
         avatar: string;
-        isActive: boolean;
         emailVerified: boolean;
         lastLogin: Date;
-        createdAt: Date;
-        updatedAt: Date;
         subscription: {
             id: string;
             plan: import(".prisma/client").$Enums.PlanType;
@@ -54,20 +68,20 @@ export declare class UsersController {
             currentPeriodEnd: Date;
             features: import("@prisma/client/runtime/library").JsonValue;
         };
-        ownedBuildings: {
+        ownedProperties: {
             id: string;
             name: string;
             address: string;
             _count: {
                 expenses: number;
-                tickets: number;
                 units: number;
+                tickets: number;
             };
         }[];
         managedUnits: {
             number: string;
             id: string;
-            building: {
+            property: {
                 id: string;
                 name: string;
                 address: string;
@@ -82,18 +96,50 @@ export declare class UsersController {
             };
         }[];
     }>;
-    remove(id: string, req: Request): Promise<{
+    update(id: string, updateData: any, req: Request): Promise<{
         id: string;
         name: string;
-        email: string;
-        passwordHash: string;
-        role: import(".prisma/client").$Enums.UserRole;
-        phone: string | null;
-        avatar: string | null;
         isActive: boolean;
-        emailVerified: boolean;
-        lastLogin: Date | null;
         createdAt: Date;
         updatedAt: Date;
+        email: string;
+        role: import(".prisma/client").$Enums.UserRole;
+        phone: string;
+        avatar: string;
+        emailVerified: boolean;
+        lastLogin: Date;
+    }>;
+    remove(id: string, req: Request): Promise<{
+        id: string;
+        role: import(".prisma/client").$Enums.UserRole;
+        userId: string;
+        tenantId: string;
+    }>;
+    deactivate(id: string, req: Request): Promise<{
+        message: string;
+        userId: string;
+        tenantId: string;
+    }>;
+    getUserStats(id: string, req: Request): Promise<{
+        user: {
+            id: string;
+            name: string;
+            email: string;
+            role: import(".prisma/client").$Enums.UserRole;
+        };
+        stats: {
+            ownedProperties: number;
+            managedUnits: number;
+            createdTasks: number;
+            assignedTasks: number;
+            tickets: number;
+        };
+        properties: {
+            id: string;
+            name: string;
+            units: number;
+            expenses: number;
+            tickets: number;
+        }[];
     }>;
 }

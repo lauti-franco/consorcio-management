@@ -18,41 +18,46 @@ const swagger_1 = require("@nestjs/swagger");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const roles_guard_1 = require("../common/guards/roles.guard");
 const roles_decorator_1 = require("../common/decorators/roles.decorator");
-const user_role_enum_1 = require("../common/enums/user-role.enum");
+const client_1 = require("@prisma/client");
 const users_service_1 = require("./users.service");
 let UsersController = class UsersController {
     constructor(usersService) {
         this.usersService = usersService;
     }
-    findAll(req, role, buildingId) {
-        const user = req.user;
-        return this.usersService.findAll(user.id, user.role, role, buildingId);
+    findAll(req, role, propertyId) {
+        return this.usersService.findAll(req.user.id, req.userTenantRole, req.tenant.id, role, propertyId);
     }
     findOne(id, req) {
-        const user = req.user;
-        return this.usersService.findOne(id, user.id, user.role);
+        return this.usersService.findOne(id, req.user.id, req.userTenantRole, req.tenant.id);
+    }
+    update(id, updateData, req) {
+        return this.usersService.update(id, updateData, req.user.id, req.userTenantRole, req.tenant.id);
     }
     remove(id, req) {
-        const user = req.user;
-        return this.usersService.remove(id, user.id, user.role);
+        return this.usersService.remove(id, req.user.id, req.userTenantRole, req.tenant.id);
+    }
+    deactivate(id, req) {
+        return this.usersService.deactivate(id, req.user.id, req.userTenantRole, req.tenant.id);
+    }
+    getUserStats(id, req) {
+        return this.usersService.getUserStats(id, req.tenant.id);
     }
 };
 exports.UsersController = UsersController;
 __decorate([
     (0, common_1.Get)(),
-    (0, roles_decorator_1.Roles)(user_role_enum_1.UserRole.ADMIN),
-    (0, swagger_1.ApiOperation)({ summary: 'Get all users (Admin only)' }),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.ADMIN, client_1.UserRole.SUPER_ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Get all users for current tenant (Admin only)' }),
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Query)('role')),
-    __param(2, (0, common_1.Query)('buildingId')),
+    __param(2, (0, common_1.Query)('propertyId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, String, String]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)(':id'),
-    (0, roles_decorator_1.Roles)(user_role_enum_1.UserRole.ADMIN),
-    (0, swagger_1.ApiOperation)({ summary: 'Get user by ID (Admin only)' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Get user by ID' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
@@ -60,15 +65,44 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "findOne", null);
 __decorate([
+    (0, common_1.Patch)(':id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Update user' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "update", null);
+__decorate([
     (0, common_1.Delete)(':id'),
-    (0, roles_decorator_1.Roles)(user_role_enum_1.UserRole.ADMIN),
-    (0, swagger_1.ApiOperation)({ summary: 'Delete user (Admin only)' }),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.SUPER_ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Remove user from current tenant (Super Admin only)' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "remove", null);
+__decorate([
+    (0, common_1.Patch)(':id/deactivate'),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.ADMIN, client_1.UserRole.SUPER_ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Deactivate user in current tenant (Admin only)' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "deactivate", null);
+__decorate([
+    (0, common_1.Get)(':id/stats'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get user statistics for current tenant' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "getUserStats", null);
 exports.UsersController = UsersController = __decorate([
     (0, swagger_1.ApiTags)('users'),
     (0, common_1.Controller)('users'),

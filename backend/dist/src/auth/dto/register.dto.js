@@ -12,7 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.RegisterDto = void 0;
 const class_validator_1 = require("class-validator");
 const swagger_1 = require("@nestjs/swagger");
-const types_1 = require("../../common/types");
+const client_1 = require("@prisma/client");
 class RegisterDto {
 }
 exports.RegisterDto = RegisterDto;
@@ -34,14 +34,18 @@ __decorate([
     __metadata("design:type", String)
 ], RegisterDto.prototype, "password", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ enum: types_1.UserRole, example: types_1.UserRole.RESIDENT }),
-    (0, class_validator_1.IsEnum)(types_1.UserRole),
+    (0, swagger_1.ApiProperty)({ enum: client_1.UserRole, example: client_1.UserRole.RESIDENT }),
+    (0, class_validator_1.IsEnum)(client_1.UserRole),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "role", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, swagger_1.ApiProperty)({
+        description: 'Tenant ID (optional - required for non-admin users)',
+        example: 'clt2n9z8g000008l49v9o1x2z',
+        required: false
+    }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], RegisterDto.prototype, "buildingId", void 0);
+], RegisterDto.prototype, "tenantId", void 0);
 //# sourceMappingURL=register.dto.js.map

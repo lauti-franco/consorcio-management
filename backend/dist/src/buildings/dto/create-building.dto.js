@@ -33,4 +33,19 @@ __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreateBuildingDto.prototype, "city", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: {
+            currency: 'ARS',
+            language: 'es',
+            expenseCalculation: 'area_based',
+            paymentMethods: ['transfer', 'cash'],
+            dueDay: 10
+        },
+        required: false
+    }),
+    (0, class_validator_1.IsObject)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], CreateBuildingDto.prototype, "settings", void 0);
 //# sourceMappingURL=create-building.dto.js.map

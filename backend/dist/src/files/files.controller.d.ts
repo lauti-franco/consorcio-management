@@ -5,6 +5,7 @@ export declare class FilesController {
     uploadFile(file: Express.Multer.File, req: any): Promise<{
         id: string;
         createdAt: Date;
+        tenantId: string;
         key: string;
         url: string;
         mimeType: string;
@@ -14,6 +15,7 @@ export declare class FilesController {
     findAll(req: any): Promise<{
         id: string;
         createdAt: Date;
+        tenantId: string;
         key: string;
         url: string;
         mimeType: string;
@@ -23,6 +25,7 @@ export declare class FilesController {
     findOne(id: string, req: any): Promise<{
         id: string;
         createdAt: Date;
+        tenantId: string;
         key: string;
         url: string;
         mimeType: string;
@@ -32,6 +35,7 @@ export declare class FilesController {
     remove(id: string, req: any): Promise<{
         id: string;
         createdAt: Date;
+        tenantId: string;
         key: string;
         url: string;
         mimeType: string;

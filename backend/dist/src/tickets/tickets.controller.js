@@ -21,43 +21,46 @@ const update_ticket_dto_1 = require("./dto/update-ticket.dto");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const roles_guard_1 = require("../common/guards/roles.guard");
 const roles_decorator_1 = require("../common/decorators/roles.decorator");
-const user_role_enum_1 = require("../common/enums/user-role.enum");
+const client_1 = require("@prisma/client");
 let TicketsController = class TicketsController {
     constructor(ticketsService) {
         this.ticketsService = ticketsService;
     }
     create(createTicketDto, req) {
-        return this.ticketsService.create(createTicketDto, req.user.id);
+        return this.ticketsService.create({
+            ...createTicketDto,
+            tenantId: req.tenant.id
+        }, req.user.id);
     }
-    findAll(req, buildingId) {
-        return this.ticketsService.findAll(req.user.id, req.user.role, buildingId);
+    findAll(req, propertyId) {
+        return this.ticketsService.findAll(req.user.id, req.userTenantRole, req.tenant.id, propertyId);
     }
     findOne(id, req) {
-        return this.ticketsService.findOne(id, req.user.id, req.user.role);
+        return this.ticketsService.findOne(id, req.user.id, req.userTenantRole, req.tenant.id);
     }
     update(id, updateTicketDto, req) {
-        return this.ticketsService.update(id, updateTicketDto, req.user.id, req.user.role);
+        return this.ticketsService.update(id, updateTicketDto, req.user.id, req.userTenantRole, req.tenant.id);
     }
     remove(id, req) {
-        return this.ticketsService.remove(id, req.user.id, req.user.role);
+        return this.ticketsService.remove(id, req.user.id, req.userTenantRole, req.tenant.id);
     }
     assignToMe(id, req) {
-        return this.ticketsService.assignToMe(id, req.user.id);
+        return this.ticketsService.assignToMe(id, req.user.id, req.tenant.id);
     }
     completeTicket(id, req) {
-        return this.ticketsService.completeTicket(id, req.user.id, req.user.role);
+        return this.ticketsService.completeTicket(id, req.user.id, req.userTenantRole, req.tenant.id);
     }
     addPhoto(id, photoUrl, req) {
-        return this.ticketsService.addPhoto(id, photoUrl, req.user.id, req.user.role);
+        return this.ticketsService.addPhoto(id, photoUrl, req.user.id, req.userTenantRole, req.tenant.id);
     }
-    getStats(req, buildingId) {
-        return this.ticketsService.getStats(req.user.id, req.user.role, buildingId);
+    getStats(req, propertyId) {
+        return this.ticketsService.getStats(req.user.id, req.userTenantRole, req.tenant.id, propertyId);
     }
 };
 exports.TicketsController = TicketsController;
 __decorate([
     (0, common_1.Post)(),
-    (0, roles_decorator_1.Roles)(user_role_enum_1.UserRole.RESIDENT, user_role_enum_1.UserRole.ADMIN),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.RESIDENT, client_1.UserRole.ADMIN, client_1.UserRole.SUPER_ADMIN),
     (0, swagger_1.ApiOperation)({ summary: 'Create a new ticket' }),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Req)()),
@@ -67,10 +70,10 @@ __decorate([
 ], TicketsController.prototype, "create", null);
 __decorate([
     (0, common_1.Get)(),
-    (0, swagger_1.ApiOperation)({ summary: 'Get all tickets' }),
-    (0, swagger_1.ApiQuery)({ name: 'buildingId', required: false, type: String }),
+    (0, swagger_1.ApiOperation)({ summary: 'Get all tickets for current tenant' }),
+    (0, swagger_1.ApiQuery)({ name: 'propertyId', required: false, type: String, description: 'Filter by property ID' }),
     __param(0, (0, common_1.Req)()),
-    __param(1, (0, common_1.Query)('buildingId')),
+    __param(1, (0, common_1.Query)('propertyId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
@@ -96,7 +99,7 @@ __decorate([
 ], TicketsController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)(':id'),
-    (0, roles_decorator_1.Roles)(user_role_enum_1.UserRole.ADMIN),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.ADMIN, client_1.UserRole.SUPER_ADMIN),
     (0, swagger_1.ApiOperation)({ summary: 'Delete ticket (Admin only)' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Req)()),
@@ -106,7 +109,7 @@ __decorate([
 ], TicketsController.prototype, "remove", null);
 __decorate([
     (0, common_1.Post)(':id/assign-to-me'),
-    (0, roles_decorator_1.Roles)(user_role_enum_1.UserRole.MAINTENANCE),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.MAINTENANCE),
     (0, swagger_1.ApiOperation)({ summary: 'Assign ticket to current user (Maintenance only)' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Req)()),
@@ -116,7 +119,7 @@ __decorate([
 ], TicketsController.prototype, "assignToMe", null);
 __decorate([
     (0, common_1.Post)(':id/complete'),
-    (0, roles_decorator_1.Roles)(user_role_enum_1.UserRole.MAINTENANCE, user_role_enum_1.UserRole.ADMIN),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.MAINTENANCE, client_1.UserRole.ADMIN, client_1.UserRole.SUPER_ADMIN),
     (0, swagger_1.ApiOperation)({ summary: 'Mark ticket as completed' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Req)()),
@@ -136,10 +139,10 @@ __decorate([
 ], TicketsController.prototype, "addPhoto", null);
 __decorate([
     (0, common_1.Get)('stats/overview'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get ticket statistics' }),
-    (0, swagger_1.ApiQuery)({ name: 'buildingId', required: false, type: String }),
+    (0, swagger_1.ApiOperation)({ summary: 'Get ticket statistics for current tenant' }),
+    (0, swagger_1.ApiQuery)({ name: 'propertyId', required: false, type: String, description: 'Filter by property ID' }),
     __param(0, (0, common_1.Req)()),
-    __param(1, (0, common_1.Query)('buildingId')),
+    __param(1, (0, common_1.Query)('propertyId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)

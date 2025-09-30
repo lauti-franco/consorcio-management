@@ -18,11 +18,37 @@ let RolesGuard = class RolesGuard {
     }
     canActivate(context) {
         const requiredRoles = this.reflector.get('roles', context.getHandler());
-        if (!requiredRoles) {
+        if (!requiredRoles || requiredRoles.length === 0) {
             return true;
         }
-        const { user } = context.switchToHttp().getRequest();
-        return requiredRoles.includes(user.role);
+        const request = context.switchToHttp().getRequest();
+        const userRole = this.getUserRole(request);
+        if (!userRole) {
+            throw new common_1.ForbiddenException('No se pudo determinar el rol del usuario');
+        }
+        const hasRole = requiredRoles.some((role) => userRole === role);
+        if (!hasRole) {
+            throw new common_1.ForbiddenException(`Permisos insuficientes. Roles requeridos: ${requiredRoles.join(', ')}. Tu rol: ${userRole}`);
+        }
+        return true;
+    }
+    getUserRole(request) {
+        if (request.user?.role) {
+            return request.user.role;
+        }
+        if (request.userTenantRole) {
+            return request.userTenantRole;
+        }
+        if (request.user?.userTenants) {
+            const tenantId = request.tenant?.id;
+            if (tenantId) {
+                const userTenant = request.user.userTenants.find((ut) => ut.tenantId === tenantId);
+                if (userTenant) {
+                    return userTenant.role;
+                }
+            }
+        }
+        return null;
     }
 };
 exports.RolesGuard = RolesGuard;

@@ -1,34 +1,72 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+// src/buildings/buildings.service.ts
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBuildingDto } from './dto/create-building.dto';
 import { UpdateBuildingDto } from './dto/update-building.dto';
+import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class BuildingsService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createBuildingDto: CreateBuildingDto, userId: string) {
-    // Verificar límite de suscripción
+  async create(createBuildingDto: CreateBuildingDto & { tenantId: string; ownerId: string }) {
+    // Verificar que el tenant existe y está activo
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { 
+        id: createBuildingDto.tenantId,
+        isActive: true 
+      }
+    });
+
+    if (!tenant) {
+      throw new BadRequestException('Tenant not found or inactive');
+    }
+
+    // Verificar que el usuario tiene acceso al tenant
+    const userTenant = await this.prisma.userTenant.findUnique({
+      where: {
+        userId_tenantId: {
+          userId: createBuildingDto.ownerId,
+          tenantId: createBuildingDto.tenantId
+        }
+      }
+    });
+
+    if (!userTenant) {
+      throw new ForbiddenException('User does not have access to this tenant');
+    }
+
+    // Verificar límite de propiedades según suscripción
     const userSubscription = await this.prisma.subscription.findUnique({
-      where: { userId },
+      where: { userId: createBuildingDto.ownerId },
     });
 
-    const buildingCount = await this.prisma.building.count({
-      where: { ownerId: userId },
+    const propertyCount = await this.prisma.property.count({
+      where: { 
+        tenantId: createBuildingDto.tenantId,
+        ownerId: createBuildingDto.ownerId 
+      },
     });
 
-    if (userSubscription && buildingCount >= userSubscription.maxBuildings) {
+    if (userSubscription && propertyCount >= userSubscription.maxProperties) {
       throw new ForbiddenException(
-        `Límite de edificios alcanzado. Tu plan permite máximo ${userSubscription.maxBuildings} edificios.`
+        `Límite de propiedades alcanzado. Tu plan permite máximo ${userSubscription.maxProperties} propiedades.`
       );
     }
 
-    return this.prisma.building.create({
+    // Crear la propiedad (building) con tenantId
+    return this.prisma.property.create({
       data: {
         name: createBuildingDto.name,
         address: createBuildingDto.address,
         city: createBuildingDto.city,
-        ownerId: userId,
+        ownerId: createBuildingDto.ownerId,
+        tenantId: createBuildingDto.tenantId,
+        settings: createBuildingDto.settings || {
+          currency: 'ARS',
+          language: 'es',
+          expenseCalculation: 'area_based'
+        }
       },
       include: {
         owner: {
@@ -38,42 +76,23 @@ export class BuildingsService {
             email: true,
           },
         },
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+          }
+        }
       },
     });
   }
 
-  async findAll(userId: string, userRole: string) {
-    let whereCondition = {};
-    
-    // Filtrar según el rol del usuario
-    if (userRole === 'RESIDENT') {
-      // Residentes solo ven edificios donde tienen unidades asignadas
-      whereCondition = {
-        units: {
-          some: {
-            managerId: userId,
-          },
-        },
-      };
-    } else if (userRole === 'MAINTENANCE') {
-      // Personal de mantenimiento ve edificios donde tienen tickets asignados
-      whereCondition = {
-        tickets: {
-          some: {
-            assignedToId: userId,
-          },
-        },
-      };
-    } else if (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') {
-      // Admins y super admins ven todos sus edificios
-      whereCondition = { ownerId: userId };
-    } else {
-      // Por defecto, solo edificios del usuario
-      whereCondition = { ownerId: userId };
-    }
-
-    return this.prisma.building.findMany({
-      where: whereCondition,
+  async findAllByTenant(tenantId: string) {
+    // Obtener todas las propiedades del tenant
+    return this.prisma.property.findMany({
+      where: { 
+        tenantId,
+        isActive: true 
+      },
       include: {
         owner: {
           select: {
@@ -94,12 +113,14 @@ export class BuildingsService {
     });
   }
 
-  async findOne(id: string, userId: string, userRole: string) {
-    // Verificar permisos de acceso al edificio
-    await this.verifyBuildingAccess(id, userId, userRole);
-
-    const building = await this.prisma.building.findUnique({
-      where: { id },
+  async findOne(id: string, tenantId: string) {
+    // Verificar que la propiedad pertenece al tenant
+    const property = await this.prisma.property.findFirst({
+      where: { 
+        id,
+        tenantId,
+        isActive: true 
+      },
       include: {
         owner: {
           select: {
@@ -110,6 +131,7 @@ export class BuildingsService {
           },
         },
         units: {
+          where: { isOccupied: true },
           include: {
             manager: {
               select: {
@@ -132,19 +154,19 @@ export class BuildingsService {
       },
     });
 
-    if (!building) {
-      throw new NotFoundException('Building not found');
+    if (!property) {
+      throw new NotFoundException('Property not found in this tenant');
     }
 
-    return building;
+    return property;
   }
 
-  async update(id: string, updateBuildingDto: UpdateBuildingDto, userId: string) {
-    // Verificar que el usuario es el propietario
-    await this.verifyBuildingOwnership(id, userId);
+  async update(id: string, updateBuildingDto: UpdateBuildingDto, tenantId: string) {
+    // Verificar que la propiedad existe y pertenece al tenant
+    await this.verifyPropertyExists(id, tenantId);
 
     try {
-      return await this.prisma.building.update({
+      return await this.prisma.property.update({
         where: { id },
         data: updateBuildingDto,
         include: {
@@ -155,30 +177,37 @@ export class BuildingsService {
               email: true,
             },
           },
+          tenant: {
+            select: {
+              id: true,
+              name: true,
+            }
+          }
         },
       });
     } catch {
-      throw new NotFoundException('Building not found');
+      throw new NotFoundException('Property not found');
     }
   }
 
-  async remove(id: string, userId: string) {
-    // Verificar que el usuario es el propietario
-    await this.verifyBuildingOwnership(id, userId);
+  async remove(id: string, tenantId: string) {
+    // Verificar que la propiedad existe y pertenece al tenant
+    await this.verifyPropertyExists(id, tenantId);
 
     try {
-      // Soft delete - marcar como inactivo en lugar de eliminar
-      return await this.prisma.building.update({
+      // Soft delete - marcar como inactivo
+      return await this.prisma.property.update({
         where: { id },
         data: { isActive: false },
       });
     } catch {
-      throw new NotFoundException('Building not found');
+      throw new NotFoundException('Property not found');
     }
   }
 
-  async getBuildingStats(id: string, userId: string, userRole: string) {
-    await this.verifyBuildingAccess(id, userId, userRole);
+  async getPropertyStats(id: string, tenantId: string) {
+    // Verificar que la propiedad pertenece al tenant
+    await this.verifyPropertyExists(id, tenantId);
 
     const [
       totalUnits,
@@ -188,24 +217,34 @@ export class BuildingsService {
       monthlyRevenue,
       totalResidents,
     ] = await Promise.all([
-      this.prisma.unit.count({ where: { buildingId: id } }),
-      this.prisma.unit.count({ where: { buildingId: id, isOccupied: true } }),
+      this.prisma.unit.count({ 
+        where: { 
+          propertyId: id,
+          isOccupied: true 
+        } 
+      }),
+      this.prisma.unit.count({ 
+        where: { 
+          propertyId: id, 
+          isOccupied: true, 
+        } 
+      }),
       this.prisma.ticket.count({ 
         where: { 
-          buildingId: id, 
+          propertyId: id, 
           status: { in: ['OPEN', 'IN_PROGRESS'] } 
         } 
       }),
       this.prisma.expense.aggregate({
         where: { 
-          buildingId: id, 
+          propertyId: id, 
           status: { in: ['OPEN', 'OVERDUE'] } 
         },
         _sum: { amount: true },
       }),
       this.prisma.payment.aggregate({
         where: { 
-          expense: { buildingId: id },
+          expense: { propertyId: id },
           status: 'COMPLETED',
           date: {
             gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
@@ -217,7 +256,8 @@ export class BuildingsService {
         where: {
           managedUnits: {
             some: {
-              buildingId: id,
+              propertyId: id,
+              isOccupied: true
             },
           },
           role: 'RESIDENT',
@@ -236,14 +276,33 @@ export class BuildingsService {
     };
   }
 
-  private async verifyBuildingAccess(buildingId: string, userId: string, userRole: string) {
-    if (userRole === 'SUPER_ADMIN') {
+  private async verifyPropertyExists(propertyId: string, tenantId: string) {
+    const property = await this.prisma.property.findFirst({
+      where: { 
+        id: propertyId, 
+        tenantId,
+        isActive: true 
+      },
+    });
+
+    if (!property) {
+      throw new NotFoundException('Property not found in this tenant');
+    }
+
+    return property;
+  }
+
+  // Método para verificar acceso basado en roles de tenant (opcional)
+  async verifyPropertyAccess(propertyId: string, userId: string, userRole: UserRole, tenantId: string) {
+    if (userRole === UserRole.SUPER_ADMIN) {
       return true; // Super admin tiene acceso a todo
     }
 
-    const building = await this.prisma.building.findFirst({
+    const property = await this.prisma.property.findFirst({
       where: {
-        id: buildingId,
+        id: propertyId,
+        tenantId,
+        isActive: true,
         OR: [
           { ownerId: userId }, // Propietario
           { units: { some: { managerId: userId } } }, // Manager de unidad
@@ -252,22 +311,10 @@ export class BuildingsService {
       },
     });
 
-    if (!building) {
-      throw new ForbiddenException('No tienes acceso a este edificio');
+    if (!property) {
+      throw new ForbiddenException('No tienes acceso a esta propiedad en este tenant');
     }
 
-    return building;
-  }
-
-  private async verifyBuildingOwnership(buildingId: string, userId: string) {
-    const building = await this.prisma.building.findFirst({
-      where: { id: buildingId, ownerId: userId },
-    });
-
-    if (!building) {
-      throw new ForbiddenException('No eres el propietario de este edificio');
-    }
-
-    return building;
+    return property;
   }
 }

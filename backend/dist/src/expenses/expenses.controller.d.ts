@@ -1,10 +1,11 @@
+import { Request } from 'express';
 import { ExpensesService } from './expenses.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
 export declare class ExpensesController {
     private readonly expensesService;
     constructor(expensesService: ExpensesService);
-    create(createExpenseDto: CreateExpenseDto, req: any): Promise<{
+    create(createExpenseDto: CreateExpenseDto, req: Request): Promise<{
         payments: ({
             user: {
                 id: string;
@@ -13,8 +14,9 @@ export declare class ExpensesController {
             };
         } & {
             id: string;
-            status: import(".prisma/client").$Enums.PaymentStatus;
             userId: string;
+            tenantId: string;
+            status: import(".prisma/client").$Enums.PaymentStatus;
             amount: number;
             unitId: string;
             date: Date;
@@ -23,32 +25,32 @@ export declare class ExpensesController {
             receiptUrl: string | null;
             expenseId: string;
         })[];
-        building: {
+        property: {
             id: string;
             name: string;
-            isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
             address: string;
-            city: string;
-            settings: import("@prisma/client/runtime/library").JsonValue;
-            ownerId: string;
+        };
+        unit: {
+            number: string;
+            id: string;
+            floor: number;
         };
     } & {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.ExpenseStatus;
         userId: string | null;
+        tenantId: string;
+        status: import(".prisma/client").$Enums.ExpenseStatus;
         type: import(".prisma/client").$Enums.ExpenseType;
-        buildingId: string;
+        propertyId: string;
         concept: string;
         amount: number;
         dueDate: Date;
         period: string | null;
         unitId: string | null;
     }>;
-    findAll(req: any, buildingId?: string): Promise<({
+    findAll(req: Request, propertyId?: string): Promise<({
         payments: ({
             user: {
                 id: string;
@@ -57,8 +59,9 @@ export declare class ExpensesController {
             };
         } & {
             id: string;
-            status: import(".prisma/client").$Enums.PaymentStatus;
             userId: string;
+            tenantId: string;
+            status: import(".prisma/client").$Enums.PaymentStatus;
             amount: number;
             unitId: string;
             date: Date;
@@ -67,32 +70,32 @@ export declare class ExpensesController {
             receiptUrl: string | null;
             expenseId: string;
         })[];
-        building: {
+        property: {
             id: string;
             name: string;
-            isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
             address: string;
-            city: string;
-            settings: import("@prisma/client/runtime/library").JsonValue;
-            ownerId: string;
+        };
+        unit: {
+            number: string;
+            id: string;
+            floor: number;
         };
     } & {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.ExpenseStatus;
         userId: string | null;
+        tenantId: string;
+        status: import(".prisma/client").$Enums.ExpenseStatus;
         type: import(".prisma/client").$Enums.ExpenseType;
-        buildingId: string;
+        propertyId: string;
         concept: string;
         amount: number;
         dueDate: Date;
         period: string | null;
         unitId: string | null;
     })[]>;
-    getStats(req: any): Promise<{
+    getStats(req: Request, propertyId?: string): Promise<{
         total: number;
         open: number;
         paid: number;
@@ -101,7 +104,7 @@ export declare class ExpensesController {
         paidAmount: number;
         pendingAmount: number;
     }>;
-    findOne(id: string, req: any): Promise<{
+    findOne(id: string, req: Request): Promise<{
         payments: ({
             user: {
                 id: string;
@@ -110,8 +113,9 @@ export declare class ExpensesController {
             };
         } & {
             id: string;
-            status: import(".prisma/client").$Enums.PaymentStatus;
             userId: string;
+            tenantId: string;
+            status: import(".prisma/client").$Enums.PaymentStatus;
             amount: number;
             unitId: string;
             date: Date;
@@ -120,36 +124,43 @@ export declare class ExpensesController {
             receiptUrl: string | null;
             expenseId: string;
         })[];
-        building: {
+        property: {
             id: string;
             name: string;
-            isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
             address: string;
-            city: string;
-            settings: import("@prisma/client/runtime/library").JsonValue;
-            ownerId: string;
+        };
+        unit: {
+            number: string;
+            id: string;
+            floor: number;
         };
     } & {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.ExpenseStatus;
         userId: string | null;
+        tenantId: string;
+        status: import(".prisma/client").$Enums.ExpenseStatus;
         type: import(".prisma/client").$Enums.ExpenseType;
-        buildingId: string;
+        propertyId: string;
         concept: string;
         amount: number;
         dueDate: Date;
         period: string | null;
         unitId: string | null;
     }>;
-    update(id: string, updateExpenseDto: UpdateExpenseDto, req: any): Promise<{
-        payments: {
+    update(id: string, updateExpenseDto: UpdateExpenseDto, req: Request): Promise<{
+        payments: ({
+            user: {
+                id: string;
+                name: string;
+                email: string;
+            };
+        } & {
             id: string;
-            status: import(".prisma/client").$Enums.PaymentStatus;
             userId: string;
+            tenantId: string;
+            status: import(".prisma/client").$Enums.PaymentStatus;
             amount: number;
             unitId: string;
             date: Date;
@@ -157,40 +168,41 @@ export declare class ExpensesController {
             transactionId: string | null;
             receiptUrl: string | null;
             expenseId: string;
-        }[];
-        building: {
+        })[];
+        property: {
             id: string;
             name: string;
-            isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
             address: string;
-            city: string;
-            settings: import("@prisma/client/runtime/library").JsonValue;
-            ownerId: string;
+        };
+        unit: {
+            number: string;
+            id: string;
+            floor: number;
         };
     } & {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.ExpenseStatus;
         userId: string | null;
+        tenantId: string;
+        status: import(".prisma/client").$Enums.ExpenseStatus;
         type: import(".prisma/client").$Enums.ExpenseType;
-        buildingId: string;
+        propertyId: string;
         concept: string;
         amount: number;
         dueDate: Date;
         period: string | null;
         unitId: string | null;
     }>;
-    remove(id: string, req: any): Promise<{
+    remove(id: string, req: Request): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.ExpenseStatus;
         userId: string | null;
+        tenantId: string;
+        status: import(".prisma/client").$Enums.ExpenseStatus;
         type: import(".prisma/client").$Enums.ExpenseType;
-        buildingId: string;
+        propertyId: string;
         concept: string;
         amount: number;
         dueDate: Date;

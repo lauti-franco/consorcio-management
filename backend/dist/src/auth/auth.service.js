@@ -21,7 +21,7 @@ let AuthService = class AuthService {
         this.jwtService = jwtService;
     }
     async register(registerDto) {
-        const { email, password, name, role } = registerDto;
+        const { email, password, name, role, tenantId } = registerDto;
         const existingUser = await this.prisma.user.findUnique({
             where: { email },
         });
@@ -48,12 +48,34 @@ let AuthService = class AuthService {
                 updatedAt: true,
             },
         });
-        if (role === client_1.UserRole.ADMIN) {
+        if (tenantId) {
+            await this.prisma.userTenant.create({
+                data: {
+                    userId: user.id,
+                    tenantId: tenantId,
+                    role: role || client_1.UserRole.RESIDENT,
+                },
+            });
+        }
+        if (role === client_1.UserRole.ADMIN && !tenantId) {
+            const defaultTenant = await this.prisma.tenant.create({
+                data: {
+                    name: `${name}'s Consorcio`,
+                    description: 'Tenant por defecto',
+                },
+            });
+            await this.prisma.userTenant.create({
+                data: {
+                    userId: user.id,
+                    tenantId: defaultTenant.id,
+                    role: client_1.UserRole.ADMIN,
+                },
+            });
             await this.prisma.subscription.create({
                 data: {
                     plan: 'STARTER',
                     status: 'ACTIVE',
-                    maxBuildings: 1,
+                    maxProperties: 1,
                     maxUsers: 10,
                     features: {
                         advancedReports: false,
@@ -67,30 +89,53 @@ let AuthService = class AuthService {
                 },
             });
         }
-        const tokens = await this.generateTokens(user.id);
+        const tokens = await this.generateTokens(user.id, tenantId);
         return {
             message: 'Usuario registrado exitosamente',
             data: {
                 user,
-                ...tokens
+                ...tokens,
+                tenantId: tenantId || (role === client_1.UserRole.ADMIN ? null : tenantId)
             }
         };
     }
     async login(loginDto) {
-        const { email, password } = loginDto;
+        const { email, password, tenantId } = loginDto;
         const user = await this.prisma.user.findUnique({
             where: { email },
             include: {
                 subscription: true,
                 managedUnits: {
                     include: {
-                        building: true,
+                        property: {
+                            select: {
+                                id: true,
+                                name: true,
+                                tenantId: true
+                            }
+                        },
                     },
                     take: 5,
                 },
-                ownedBuildings: {
+                ownedProperties: {
                     take: 5,
+                    select: {
+                        id: true,
+                        name: true,
+                        tenantId: true
+                    }
                 },
+                userTenants: {
+                    include: {
+                        tenant: {
+                            select: {
+                                id: true,
+                                name: true,
+                                description: true
+                            }
+                        }
+                    }
+                }
             },
         });
         if (!user) {
@@ -103,17 +148,38 @@ let AuthService = class AuthService {
         if (!isPasswordValid) {
             throw new common_1.UnauthorizedException('Credenciales inválidas');
         }
+        let selectedTenantId = tenantId;
+        if (tenantId) {
+            const userTenant = await this.prisma.userTenant.findUnique({
+                where: {
+                    userId_tenantId: {
+                        userId: user.id,
+                        tenantId: tenantId
+                    }
+                }
+            });
+            if (!userTenant) {
+                throw new common_1.UnauthorizedException('Usuario no tiene acceso a este tenant');
+            }
+        }
+        else {
+            const userTenant = user.userTenants[0];
+            if (userTenant) {
+                selectedTenantId = userTenant.tenantId;
+            }
+        }
         await this.prisma.user.update({
             where: { id: user.id },
             data: { lastLogin: new Date() },
         });
-        const tokens = await this.generateTokens(user.id);
+        const tokens = await this.generateTokens(user.id, selectedTenantId);
         const { passwordHash, ...userWithoutPassword } = user;
         return {
             message: 'Login exitoso',
             data: {
                 user: userWithoutPassword,
                 ...tokens,
+                tenantId: selectedTenantId
             },
         };
     }
@@ -188,8 +254,11 @@ let AuthService = class AuthService {
         });
         return { message: 'Contraseña actualizada exitosamente' };
     }
-    async generateTokens(userId) {
-        const payload = { sub: userId };
+    async generateTokens(userId, tenantId) {
+        const payload = {
+            sub: userId,
+            tenantId: tenantId
+        };
         const accessToken = this.jwtService.sign(payload, {
             expiresIn: process.env.JWT_EXPIRES_IN || '7d'
         });

@@ -23,16 +23,32 @@ let FilesController = class FilesController {
         this.filesService = filesService;
     }
     uploadFile(file, req) {
-        return this.filesService.uploadFile(file, req.user.id);
+        const tenantId = req.user.tenantId || req.user.userTenants?.[0]?.tenantId;
+        if (!tenantId) {
+            throw new Error('Tenant ID not found for user');
+        }
+        return this.filesService.uploadFile(file, req.user.id, tenantId);
     }
     findAll(req) {
-        return this.filesService.findAll(req.user.id);
+        const tenantId = req.user.tenantId || req.user.userTenants?.[0]?.tenantId;
+        if (!tenantId) {
+            throw new Error('Tenant ID not found for user');
+        }
+        return this.filesService.findAll(req.user.id, tenantId);
     }
     findOne(id, req) {
-        return this.filesService.findOne(id, req.user.id);
+        const tenantId = req.user.tenantId || req.user.userTenants?.[0]?.tenantId;
+        if (!tenantId) {
+            throw new Error('Tenant ID not found for user');
+        }
+        return this.filesService.findOne(id, req.user.id, tenantId);
     }
     remove(id, req) {
-        return this.filesService.remove(id, req.user.id);
+        const tenantId = req.user.tenantId || req.user.userTenants?.[0]?.tenantId;
+        if (!tenantId) {
+            throw new Error('Tenant ID not found for user');
+        }
+        return this.filesService.remove(id, req.user.id, tenantId);
     }
 };
 exports.FilesController = FilesController;

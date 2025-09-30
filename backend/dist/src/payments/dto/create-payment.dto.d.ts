@@ -1,5 +1,6 @@
+import { PaymentMethod } from '@prisma/client';
 export declare class CreatePaymentDto {
     amount: number;
-    method: string;
+    method: PaymentMethod;
     expenseId: string;
 }

@@ -12,25 +12,72 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ExpensesService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
-const types_1 = require("../common/types");
+const client_1 = require("@prisma/client");
 let ExpensesService = class ExpensesService {
     constructor(prisma) {
         this.prisma = prisma;
     }
     async create(createExpenseDto, userId) {
-        const user = await this.prisma.user.findUnique({
-            where: { id: userId },
+        const userTenant = await this.prisma.userTenant.findUnique({
+            where: {
+                userId_tenantId: {
+                    userId: userId,
+                    tenantId: createExpenseDto.tenantId
+                }
+            }
         });
-        if (user.role !== types_1.UserRole.ADMIN) {
-            throw new common_1.ForbiddenException('Only admins can create expenses');
+        if (!userTenant || userTenant.role !== client_1.UserRole.ADMIN) {
+            throw new common_1.ForbiddenException('Only admins can create expenses in this tenant');
+        }
+        const property = await this.prisma.property.findFirst({
+            where: {
+                id: createExpenseDto.propertyId,
+                tenantId: createExpenseDto.tenantId
+            }
+        });
+        if (!property) {
+            throw new common_1.ForbiddenException('Property not found in this tenant');
+        }
+        if (createExpenseDto.unitId) {
+            const unit = await this.prisma.unit.findFirst({
+                where: {
+                    id: createExpenseDto.unitId,
+                    propertyId: createExpenseDto.propertyId,
+                    tenantId: createExpenseDto.tenantId
+                }
+            });
+            if (!unit) {
+                throw new common_1.ForbiddenException('Unit not found in this property and tenant');
+            }
         }
         return this.prisma.expense.create({
             data: {
-                ...createExpenseDto,
+                concept: createExpenseDto.concept,
+                amount: createExpenseDto.amount,
                 dueDate: new Date(createExpenseDto.dueDate),
+                period: createExpenseDto.period,
+                type: createExpenseDto.type,
+                status: createExpenseDto.status || 'OPEN',
+                propertyId: createExpenseDto.propertyId,
+                unitId: createExpenseDto.unitId,
+                userId: userId,
+                tenantId: createExpenseDto.tenantId,
             },
             include: {
-                building: true,
+                property: {
+                    select: {
+                        id: true,
+                        name: true,
+                        address: true
+                    }
+                },
+                unit: {
+                    select: {
+                        id: true,
+                        number: true,
+                        floor: true
+                    }
+                },
                 payments: {
                     include: {
                         user: {
@@ -45,18 +92,56 @@ let ExpensesService = class ExpensesService {
             },
         });
     }
-    async findAll(userId, userRole, buildingId) {
-        const where = {};
-        if (userRole === types_1.UserRole.RESIDENT) {
-            where.buildingId = buildingId;
+    async findAll(userId, userRole, tenantId, propertyId) {
+        const where = { tenantId };
+        if (propertyId) {
+            where.propertyId = propertyId;
         }
-        else if (userRole === types_1.UserRole.ADMIN && buildingId) {
-            where.buildingId = buildingId;
+        if (userRole === client_1.UserRole.RESIDENT) {
+            const userUnits = await this.prisma.unit.findMany({
+                where: {
+                    managerId: userId,
+                    tenantId: tenantId
+                },
+                select: { id: true }
+            });
+            where.unitId = {
+                in: userUnits.map(unit => unit.id)
+            };
+        }
+        if (userRole === client_1.UserRole.MAINTENANCE) {
+            const maintenanceProperties = await this.prisma.property.findMany({
+                where: {
+                    tenantId: tenantId,
+                    tickets: {
+                        some: {
+                            assignedToId: userId
+                        }
+                    }
+                },
+                select: { id: true }
+            });
+            where.propertyId = {
+                in: maintenanceProperties.map(prop => prop.id)
+            };
         }
         return this.prisma.expense.findMany({
             where,
             include: {
-                building: true,
+                property: {
+                    select: {
+                        id: true,
+                        name: true,
+                        address: true
+                    }
+                },
+                unit: {
+                    select: {
+                        id: true,
+                        number: true,
+                        floor: true
+                    }
+                },
                 payments: {
                     include: {
                         user: {
@@ -74,11 +159,27 @@ let ExpensesService = class ExpensesService {
             },
         });
     }
-    async findOne(id, userId, userRole, buildingId) {
-        const expense = await this.prisma.expense.findUnique({
-            where: { id },
+    async findOne(id, userId, userRole, tenantId) {
+        const expense = await this.prisma.expense.findFirst({
+            where: {
+                id,
+                tenantId
+            },
             include: {
-                building: true,
+                property: {
+                    select: {
+                        id: true,
+                        name: true,
+                        address: true
+                    }
+                },
+                unit: {
+                    select: {
+                        id: true,
+                        number: true,
+                        floor: true
+                    }
+                },
                 payments: {
                     include: {
                         user: {
@@ -93,27 +194,73 @@ let ExpensesService = class ExpensesService {
             },
         });
         if (!expense) {
-            throw new common_1.NotFoundException('Expense not found');
+            throw new common_1.NotFoundException('Expense not found in this tenant');
         }
-        if (userRole === types_1.UserRole.RESIDENT && expense.buildingId !== buildingId) {
-            throw new common_1.ForbiddenException('Access denied');
+        if (userRole === client_1.UserRole.RESIDENT) {
+            const userUnit = await this.prisma.unit.findFirst({
+                where: {
+                    id: expense.unitId,
+                    managerId: userId,
+                    tenantId: tenantId
+                }
+            });
+            if (!userUnit) {
+                throw new common_1.ForbiddenException('Access denied to this expense');
+            }
         }
         return expense;
     }
-    async update(id, updateExpenseDto, userId) {
-        const user = await this.prisma.user.findUnique({
-            where: { id: userId },
+    async update(id, updateExpenseDto, userId, tenantId) {
+        const userTenant = await this.prisma.userTenant.findUnique({
+            where: {
+                userId_tenantId: {
+                    userId: userId,
+                    tenantId: tenantId
+                }
+            }
         });
-        if (user.role !== types_1.UserRole.ADMIN) {
-            throw new common_1.ForbiddenException('Only admins can update expenses');
+        if (!userTenant || userTenant.role !== client_1.UserRole.ADMIN) {
+            throw new common_1.ForbiddenException('Only admins can update expenses in this tenant');
+        }
+        const existingExpense = await this.prisma.expense.findFirst({
+            where: {
+                id,
+                tenantId
+            }
+        });
+        if (!existingExpense) {
+            throw new common_1.NotFoundException('Expense not found in this tenant');
         }
         try {
             return await this.prisma.expense.update({
                 where: { id },
                 data: updateExpenseDto,
                 include: {
-                    building: true,
-                    payments: true,
+                    property: {
+                        select: {
+                            id: true,
+                            name: true,
+                            address: true
+                        }
+                    },
+                    unit: {
+                        select: {
+                            id: true,
+                            number: true,
+                            floor: true
+                        }
+                    },
+                    payments: {
+                        include: {
+                            user: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    email: true,
+                                },
+                            },
+                        },
+                    },
                 },
             });
         }
@@ -121,12 +268,26 @@ let ExpensesService = class ExpensesService {
             throw new common_1.NotFoundException('Expense not found');
         }
     }
-    async remove(id, userId) {
-        const user = await this.prisma.user.findUnique({
-            where: { id: userId },
+    async remove(id, userId, tenantId) {
+        const userTenant = await this.prisma.userTenant.findUnique({
+            where: {
+                userId_tenantId: {
+                    userId: userId,
+                    tenantId: tenantId
+                }
+            }
         });
-        if (user.role !== types_1.UserRole.ADMIN) {
-            throw new common_1.ForbiddenException('Only admins can delete expenses');
+        if (!userTenant || userTenant.role !== client_1.UserRole.ADMIN) {
+            throw new common_1.ForbiddenException('Only admins can delete expenses in this tenant');
+        }
+        const existingExpense = await this.prisma.expense.findFirst({
+            where: {
+                id,
+                tenantId
+            }
+        });
+        if (!existingExpense) {
+            throw new common_1.NotFoundException('Expense not found in this tenant');
         }
         try {
             return await this.prisma.expense.delete({
@@ -137,8 +298,11 @@ let ExpensesService = class ExpensesService {
             throw new common_1.NotFoundException('Expense not found');
         }
     }
-    async getStats(buildingId) {
-        const where = buildingId ? { buildingId } : {};
+    async getStats(tenantId, propertyId) {
+        const where = { tenantId };
+        if (propertyId) {
+            where.propertyId = propertyId;
+        }
         const total = await this.prisma.expense.count({ where });
         const open = await this.prisma.expense.count({ where: { ...where, status: 'OPEN' } });
         const paid = await this.prisma.expense.count({ where: { ...where, status: 'PAID' } });

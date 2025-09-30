@@ -5,8 +5,10 @@ import { UserRole } from '@prisma/client';
 export declare class TasksService {
     private prisma;
     constructor(prisma: PrismaService);
-    create(createTaskDto: CreateTaskDto, userId: string): Promise<{
-        building: {
+    create(createTaskDto: CreateTaskDto & {
+        tenantId: string;
+    }, userId: string): Promise<{
+        property: {
             id: string;
             name: string;
         };
@@ -22,20 +24,21 @@ export declare class TasksService {
         };
     } & {
         id: string;
+        description: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         status: import(".prisma/client").$Enums.TaskStatus;
-        buildingId: string;
+        propertyId: string;
         dueDate: Date | null;
         title: string;
-        description: string;
         priority: import(".prisma/client").$Enums.Priority;
         photos: string[];
         assignedToId: string;
         createdById: string;
     }>;
-    findAll(userId: string, userRole: UserRole): Promise<({
-        building: {
+    findAll(userId: string, userRole: UserRole, tenantId: string): Promise<({
+        property: {
             id: string;
             name: string;
         };
@@ -52,20 +55,21 @@ export declare class TasksService {
         };
     } & {
         id: string;
+        description: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         status: import(".prisma/client").$Enums.TaskStatus;
-        buildingId: string;
+        propertyId: string;
         dueDate: Date | null;
         title: string;
-        description: string;
         priority: import(".prisma/client").$Enums.Priority;
         photos: string[];
         assignedToId: string;
         createdById: string;
     })[]>;
-    findOne(id: string, userId: string, userRole: UserRole): Promise<{
-        building: {
+    findOne(id: string, userId: string, userRole: UserRole, tenantId: string): Promise<{
+        property: {
             id: string;
             name: string;
             address: string;
@@ -83,20 +87,21 @@ export declare class TasksService {
         };
     } & {
         id: string;
+        description: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         status: import(".prisma/client").$Enums.TaskStatus;
-        buildingId: string;
+        propertyId: string;
         dueDate: Date | null;
         title: string;
-        description: string;
         priority: import(".prisma/client").$Enums.Priority;
         photos: string[];
         assignedToId: string;
         createdById: string;
     }>;
-    update(id: string, updateTaskDto: UpdateTaskDto, userId: string, userRole: UserRole): Promise<{
-        building: {
+    update(id: string, updateTaskDto: UpdateTaskDto, userId: string, userRole: UserRole, tenantId: string): Promise<{
+        property: {
             id: string;
             name: string;
         };
@@ -112,33 +117,35 @@ export declare class TasksService {
         };
     } & {
         id: string;
+        description: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         status: import(".prisma/client").$Enums.TaskStatus;
-        buildingId: string;
+        propertyId: string;
         dueDate: Date | null;
         title: string;
-        description: string;
         priority: import(".prisma/client").$Enums.Priority;
         photos: string[];
         assignedToId: string;
         createdById: string;
     }>;
-    remove(id: string, userId: string, userRole: UserRole): Promise<{
+    remove(id: string, userId: string, userRole: UserRole, tenantId: string): Promise<{
         id: string;
+        description: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         status: import(".prisma/client").$Enums.TaskStatus;
-        buildingId: string;
+        propertyId: string;
         dueDate: Date | null;
         title: string;
-        description: string;
         priority: import(".prisma/client").$Enums.Priority;
         photos: string[];
         assignedToId: string;
         createdById: string;
     }>;
-    addPhoto(id: string, photoUrl: string, userId: string, userRole: UserRole): Promise<{
+    addPhoto(id: string, photoUrl: string, userId: string, userRole: UserRole, tenantId: string): Promise<{
         assignedTo: {
             id: string;
             name: string;
@@ -151,19 +158,20 @@ export declare class TasksService {
         };
     } & {
         id: string;
+        description: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         status: import(".prisma/client").$Enums.TaskStatus;
-        buildingId: string;
+        propertyId: string;
         dueDate: Date | null;
         title: string;
-        description: string;
         priority: import(".prisma/client").$Enums.Priority;
         photos: string[];
         assignedToId: string;
         createdById: string;
     }>;
-    completeTask(id: string, userId: string, userRole: UserRole): Promise<{
+    completeTask(id: string, userId: string, userRole: UserRole, tenantId: string): Promise<{
         assignedTo: {
             id: string;
             name: string;
@@ -176,13 +184,14 @@ export declare class TasksService {
         };
     } & {
         id: string;
+        description: string;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         status: import(".prisma/client").$Enums.TaskStatus;
-        buildingId: string;
+        propertyId: string;
         dueDate: Date | null;
         title: string;
-        description: string;
         priority: import(".prisma/client").$Enums.Priority;
         photos: string[];
         assignedToId: string;

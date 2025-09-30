@@ -13,21 +13,54 @@ exports.RefreshTokenStrategy = void 0;
 const passport_1 = require("passport");
 const passport_2 = require("@nestjs/passport");
 const common_1 = require("@nestjs/common");
+const prisma_service_1 = require("../../prisma/prisma.service");
+const bcrypt = require("bcryptjs");
 let RefreshTokenStrategy = class RefreshTokenStrategy extends (0, passport_2.PassportStrategy)(passport_1.Strategy, 'refresh') {
-    constructor() {
+    constructor(prisma) {
         super();
+        this.prisma = prisma;
     }
     async validate(req) {
         const refreshToken = req.body.refreshToken;
         if (!refreshToken) {
             throw new common_1.UnauthorizedException('Refresh token is required');
         }
-        return { refreshToken };
+        const tokenRecord = await this.prisma.refreshToken.findFirst({
+            where: {
+                tokenHash: await bcrypt.hash(refreshToken, 12),
+                expiresAt: { gt: new Date() },
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        email: true,
+                        name: true,
+                        role: true,
+                        isActive: true,
+                    },
+                },
+            },
+        });
+        if (!tokenRecord) {
+            throw new common_1.UnauthorizedException('Refresh token inválido o expirado');
+        }
+        if (!tokenRecord.user.isActive) {
+            throw new common_1.UnauthorizedException('Usuario inactivo');
+        }
+        await this.prisma.refreshToken.delete({
+            where: { id: tokenRecord.id },
+        });
+        return {
+            userId: tokenRecord.userId,
+            user: tokenRecord.user,
+            refreshToken,
+        };
     }
 };
 exports.RefreshTokenStrategy = RefreshTokenStrategy;
 exports.RefreshTokenStrategy = RefreshTokenStrategy = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
 ], RefreshTokenStrategy);
 //# sourceMappingURL=refresh-token.strategy.js.map

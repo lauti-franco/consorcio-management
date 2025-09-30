@@ -18,6 +18,40 @@ let TicketsService = class TicketsService {
         this.prisma = prisma;
     }
     async create(createTicketDto, userId) {
+        const property = await this.prisma.property.findFirst({
+            where: {
+                id: createTicketDto.propertyId,
+                tenantId: createTicketDto.tenantId
+            }
+        });
+        if (!property) {
+            throw new common_1.NotFoundException('Property not found in this tenant');
+        }
+        if (createTicketDto.unitId) {
+            const unit = await this.prisma.unit.findFirst({
+                where: {
+                    id: createTicketDto.unitId,
+                    propertyId: createTicketDto.propertyId,
+                    tenantId: createTicketDto.tenantId
+                }
+            });
+            if (!unit) {
+                throw new common_1.ForbiddenException('Unit not found in this property and tenant');
+            }
+        }
+        if (createTicketDto.assignedTo) {
+            const assignedUserTenant = await this.prisma.userTenant.findUnique({
+                where: {
+                    userId_tenantId: {
+                        userId: createTicketDto.assignedTo,
+                        tenantId: createTicketDto.tenantId
+                    }
+                }
+            });
+            if (!assignedUserTenant) {
+                throw new common_1.ForbiddenException('Assigned user does not have access to this tenant');
+            }
+        }
         return this.prisma.ticket.create({
             data: {
                 title: createTicketDto.title,
@@ -26,9 +60,10 @@ let TicketsService = class TicketsService {
                 status: client_1.TicketStatus.OPEN,
                 category: createTicketDto.category,
                 photos: createTicketDto.photos || [],
-                buildingId: createTicketDto.buildingId,
+                propertyId: createTicketDto.propertyId,
                 unitId: createTicketDto.unitId,
                 userId: userId,
+                tenantId: createTicketDto.tenantId,
                 assignedToId: createTicketDto.assignedTo,
             },
             include: {
@@ -48,7 +83,7 @@ let TicketsService = class TicketsService {
                         phone: true,
                     },
                 },
-                building: {
+                property: {
                     select: {
                         id: true,
                         name: true,
@@ -65,11 +100,12 @@ let TicketsService = class TicketsService {
             },
         });
     }
-    async findAll(userId, userRole, buildingId) {
-        const where = {};
+    async findAll(userId, userRole, tenantId, propertyId) {
+        const where = { tenantId };
         if (userRole === client_1.UserRole.RESIDENT) {
             where.unit = {
                 managerId: userId,
+                tenantId: tenantId
             };
         }
         else if (userRole === client_1.UserRole.MAINTENANCE) {
@@ -79,12 +115,13 @@ let TicketsService = class TicketsService {
             ];
         }
         else if (userRole === client_1.UserRole.ADMIN) {
-            if (buildingId) {
-                where.buildingId = buildingId;
+            if (propertyId) {
+                where.propertyId = propertyId;
             }
             else {
-                where.building = {
+                where.property = {
                     ownerId: userId,
+                    tenantId: tenantId
                 };
             }
         }
@@ -107,7 +144,7 @@ let TicketsService = class TicketsService {
                         phone: true,
                     },
                 },
-                building: {
+                property: {
                     select: {
                         id: true,
                         name: true,
@@ -128,9 +165,12 @@ let TicketsService = class TicketsService {
             },
         });
     }
-    async findOne(id, userId, userRole) {
-        const ticket = await this.prisma.ticket.findUnique({
-            where: { id },
+    async findOne(id, userId, userRole, tenantId) {
+        const ticket = await this.prisma.ticket.findFirst({
+            where: {
+                id,
+                tenantId
+            },
             include: {
                 user: {
                     select: {
@@ -148,7 +188,7 @@ let TicketsService = class TicketsService {
                         phone: true,
                     },
                 },
-                building: {
+                property: {
                     select: {
                         id: true,
                         name: true,
@@ -165,19 +205,35 @@ let TicketsService = class TicketsService {
             },
         });
         if (!ticket) {
-            throw new common_1.NotFoundException('Ticket not found');
+            throw new common_1.NotFoundException('Ticket not found in this tenant');
         }
-        await this.verifyTicketAccess(ticket, userId, userRole);
+        await this.verifyTicketAccess(ticket, userId, userRole, tenantId);
         return ticket;
     }
-    async update(id, updateTicketDto, userId, userRole) {
-        const ticket = await this.prisma.ticket.findUnique({
-            where: { id },
+    async update(id, updateTicketDto, userId, userRole, tenantId) {
+        const ticket = await this.prisma.ticket.findFirst({
+            where: {
+                id,
+                tenantId
+            },
         });
         if (!ticket) {
-            throw new common_1.NotFoundException('Ticket not found');
+            throw new common_1.NotFoundException('Ticket not found in this tenant');
         }
-        await this.verifyTicketAccess(ticket, userId, userRole);
+        await this.verifyTicketAccess(ticket, userId, userRole, tenantId);
+        if (updateTicketDto.assignedTo) {
+            const assignedUserTenant = await this.prisma.userTenant.findUnique({
+                where: {
+                    userId_tenantId: {
+                        userId: updateTicketDto.assignedTo,
+                        tenantId: tenantId
+                    }
+                }
+            });
+            if (!assignedUserTenant) {
+                throw new common_1.ForbiddenException('Assigned user does not have access to this tenant');
+            }
+        }
         return this.prisma.ticket.update({
             where: { id },
             data: {
@@ -206,7 +262,7 @@ let TicketsService = class TicketsService {
                         phone: true,
                     },
                 },
-                building: {
+                property: {
                     select: {
                         id: true,
                         name: true,
@@ -223,12 +279,15 @@ let TicketsService = class TicketsService {
             },
         });
     }
-    async remove(id, userId, userRole) {
-        const ticket = await this.prisma.ticket.findUnique({
-            where: { id },
+    async remove(id, userId, userRole, tenantId) {
+        const ticket = await this.prisma.ticket.findFirst({
+            where: {
+                id,
+                tenantId
+            },
         });
         if (!ticket) {
-            throw new common_1.NotFoundException('Ticket not found');
+            throw new common_1.NotFoundException('Ticket not found in this tenant');
         }
         if (userRole !== client_1.UserRole.ADMIN && ticket.userId !== userId) {
             throw new common_1.ForbiddenException('No tienes permisos para eliminar este ticket');
@@ -237,12 +296,26 @@ let TicketsService = class TicketsService {
             where: { id },
         });
     }
-    async assignToMe(id, userId) {
-        const ticket = await this.prisma.ticket.findUnique({
-            where: { id },
+    async assignToMe(id, userId, tenantId) {
+        const ticket = await this.prisma.ticket.findFirst({
+            where: {
+                id,
+                tenantId
+            },
         });
         if (!ticket) {
-            throw new common_1.NotFoundException('Ticket not found');
+            throw new common_1.NotFoundException('Ticket not found in this tenant');
+        }
+        const userTenant = await this.prisma.userTenant.findUnique({
+            where: {
+                userId_tenantId: {
+                    userId: userId,
+                    tenantId: tenantId
+                }
+            }
+        });
+        if (!userTenant || userTenant.role !== client_1.UserRole.MAINTENANCE) {
+            throw new common_1.ForbiddenException('Only maintenance users can assign tickets to themselves');
         }
         return this.prisma.ticket.update({
             where: { id },
@@ -267,7 +340,7 @@ let TicketsService = class TicketsService {
                         phone: true,
                     },
                 },
-                building: {
+                property: {
                     select: {
                         id: true,
                         name: true,
@@ -284,14 +357,17 @@ let TicketsService = class TicketsService {
             },
         });
     }
-    async completeTicket(id, userId, userRole) {
-        const ticket = await this.prisma.ticket.findUnique({
-            where: { id },
+    async completeTicket(id, userId, userRole, tenantId) {
+        const ticket = await this.prisma.ticket.findFirst({
+            where: {
+                id,
+                tenantId
+            },
         });
         if (!ticket) {
-            throw new common_1.NotFoundException('Ticket not found');
+            throw new common_1.NotFoundException('Ticket not found in this tenant');
         }
-        await this.verifyTicketAccess(ticket, userId, userRole);
+        await this.verifyTicketAccess(ticket, userId, userRole, tenantId);
         return this.prisma.ticket.update({
             where: { id },
             data: {
@@ -314,7 +390,7 @@ let TicketsService = class TicketsService {
                         phone: true,
                     },
                 },
-                building: {
+                property: {
                     select: {
                         id: true,
                         name: true,
@@ -331,14 +407,17 @@ let TicketsService = class TicketsService {
             },
         });
     }
-    async addPhoto(id, photoUrl, userId, userRole) {
-        const ticket = await this.prisma.ticket.findUnique({
-            where: { id },
+    async addPhoto(id, photoUrl, userId, userRole, tenantId) {
+        const ticket = await this.prisma.ticket.findFirst({
+            where: {
+                id,
+                tenantId
+            },
         });
         if (!ticket) {
-            throw new common_1.NotFoundException('Ticket not found');
+            throw new common_1.NotFoundException('Ticket not found in this tenant');
         }
-        await this.verifyTicketAccess(ticket, userId, userRole);
+        await this.verifyTicketAccess(ticket, userId, userRole, tenantId);
         const updatedPhotos = [...ticket.photos, photoUrl];
         return this.prisma.ticket.update({
             where: { id },
@@ -362,7 +441,7 @@ let TicketsService = class TicketsService {
                         phone: true,
                     },
                 },
-                building: {
+                property: {
                     select: {
                         id: true,
                         name: true,
@@ -379,23 +458,25 @@ let TicketsService = class TicketsService {
             },
         });
     }
-    async getStats(userId, userRole, buildingId) {
-        const where = {};
+    async getStats(userId, userRole, tenantId, propertyId) {
+        const where = { tenantId };
         if (userRole === client_1.UserRole.RESIDENT) {
             where.unit = {
                 managerId: userId,
+                tenantId: tenantId
             };
         }
         else if (userRole === client_1.UserRole.MAINTENANCE) {
             where.assignedToId = userId;
         }
         else if (userRole === client_1.UserRole.ADMIN) {
-            if (buildingId) {
-                where.buildingId = buildingId;
+            if (propertyId) {
+                where.propertyId = propertyId;
             }
             else {
-                where.building = {
+                where.property = {
                     ownerId: userId,
+                    tenantId: tenantId
                 };
             }
         }
@@ -413,16 +494,17 @@ let TicketsService = class TicketsService {
             resolvedPercentage: total > 0 ? (resolved / total) * 100 : 0,
         };
     }
-    async verifyTicketAccess(ticket, userId, userRole) {
+    async verifyTicketAccess(ticket, userId, userRole, tenantId) {
         if (userRole === client_1.UserRole.ADMIN) {
-            const building = await this.prisma.building.findFirst({
+            const property = await this.prisma.property.findFirst({
                 where: {
-                    id: ticket.buildingId,
+                    id: ticket.propertyId,
                     ownerId: userId,
+                    tenantId: tenantId
                 },
             });
-            if (!building) {
-                throw new common_1.ForbiddenException('Access denied');
+            if (!property) {
+                throw new common_1.ForbiddenException('Access denied to this ticket');
             }
             return true;
         }
@@ -431,20 +513,21 @@ let TicketsService = class TicketsService {
                 where: {
                     id: ticket.unitId,
                     managerId: userId,
+                    tenantId: tenantId
                 },
             });
             if (!unitAccess) {
-                throw new common_1.ForbiddenException('Access denied');
+                throw new common_1.ForbiddenException('Access denied to this ticket');
             }
             return true;
         }
         if (userRole === client_1.UserRole.MAINTENANCE) {
             if (ticket.assignedToId !== userId) {
-                throw new common_1.ForbiddenException('Access denied');
+                throw new common_1.ForbiddenException('Access denied to this ticket');
             }
             return true;
         }
-        throw new common_1.ForbiddenException('Access denied');
+        throw new common_1.ForbiddenException('Access denied to this ticket');
     }
 };
 exports.TicketsService = TicketsService;

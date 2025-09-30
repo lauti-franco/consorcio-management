@@ -1,8 +1,8 @@
-import { UserRole } from '../../common/types';
+import { UserRole } from '@prisma/client';
 export declare class RegisterDto {
     name: string;
     email: string;
     password: string;
     role: UserRole;
-    buildingId?: string;
+    tenantId?: string;
 }

@@ -35,17 +35,23 @@ __decorate([
     __metadata("design:type", String)
 ], CreateTicketDto.prototype, "priority", void 0);
 __decorate([
+    (0, swagger_1.ApiProperty)({ enum: client_1.TicketStatus, example: client_1.TicketStatus.OPEN, required: false }),
+    (0, class_validator_1.IsEnum)(client_1.TicketStatus),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateTicketDto.prototype, "status", void 0);
+__decorate([
     (0, swagger_1.ApiProperty)({ example: 'PLUMBING' }),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreateTicketDto.prototype, "category", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: 'building-id' }),
+    (0, swagger_1.ApiProperty)({ example: 'property-id' }),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
-], CreateTicketDto.prototype, "buildingId", void 0);
+], CreateTicketDto.prototype, "propertyId", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ example: 'unit-id', required: false }),
     (0, class_validator_1.IsString)(),

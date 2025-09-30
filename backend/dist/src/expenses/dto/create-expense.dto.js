@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateExpenseDto = void 0;
 const class_validator_1 = require("class-validator");
 const swagger_1 = require("@nestjs/swagger");
+const client_1 = require("@prisma/client");
 class CreateExpenseDto {
 }
 exports.CreateExpenseDto = CreateExpenseDto;
@@ -34,9 +35,33 @@ __decorate([
     __metadata("design:type", String)
 ], CreateExpenseDto.prototype, "dueDate", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: 'clave-del-edificio' }),
+    (0, swagger_1.ApiProperty)({ example: '2024-01' }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateExpenseDto.prototype, "period", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ enum: client_1.ExpenseType, example: client_1.ExpenseType.ORDINARY }),
+    (0, class_validator_1.IsEnum)(client_1.ExpenseType),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateExpenseDto.prototype, "type", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ enum: client_1.ExpenseStatus, example: client_1.ExpenseStatus.OPEN }),
+    (0, class_validator_1.IsEnum)(client_1.ExpenseStatus),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateExpenseDto.prototype, "status", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'clave-de-la-propiedad' }),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
-], CreateExpenseDto.prototype, "buildingId", void 0);
+], CreateExpenseDto.prototype, "propertyId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'clave-de-la-unidad', required: false }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateExpenseDto.prototype, "unitId", void 0);
 //# sourceMappingURL=create-expense.dto.js.map

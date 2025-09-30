@@ -11,7 +11,8 @@ export class FilesService {
     private configService: ConfigService,
   ) {}
 
-  async uploadFile(file: Express.Multer.File, userId: string) {
+  async uploadFile(file: Express.Multer.File, userId: string, tenantId: string) {
+    // AGREGADO: tenantId como parámetro
     if (!file) {
       throw new BadRequestException('No file provided');
     }
@@ -31,7 +32,7 @@ export class FilesService {
     writeStream.write(file.buffer);
     writeStream.end();
 
-    // Guardar metadata en base de datos
+    // Guardar metadata en base de datos - CORREGIDO con tenantId
     const fileRecord = await this.prisma.file.create({
       data: {
         key: fileName,
@@ -39,35 +40,44 @@ export class FilesService {
         mimeType: file.mimetype,
         size: file.size,
         uploadedBy: userId,
+        tenantId: tenantId, // AGREGADO: tenantId requerido
       },
     });
 
     return fileRecord;
   }
 
-  async findAll(userId: string) {
+  async findAll(userId: string, tenantId: string) {
+    // AGREGADO: tenantId como parámetro
     return this.prisma.file.findMany({
-      where: { uploadedBy: userId },
+      where: { 
+        uploadedBy: userId,
+        tenantId: tenantId // AGREGADO: filtrar por tenant
+      },
       orderBy: {
         createdAt: 'desc',
       },
     });
   }
 
-  async findOne(id: string, userId: string) {
+  async findOne(id: string, userId: string, tenantId: string) {
+    // AGREGADO: tenantId como parámetro
     return this.prisma.file.findFirst({
       where: {
         id,
         uploadedBy: userId,
+        tenantId: tenantId // AGREGADO: filtrar por tenant
       },
     });
   }
 
-  async remove(id: string, userId: string) {
+  async remove(id: string, userId: string, tenantId: string) {
+    // AGREGADO: tenantId como parámetro
     const file = await this.prisma.file.findFirst({
       where: {
         id,
         uploadedBy: userId,
+        tenantId: tenantId // AGREGADO: filtrar por tenant
       },
     });
 

@@ -1,4 +1,4 @@
-
+// prisma/seed.ts - ACTUALIZADO para multi-tenant
 import { PrismaClient, UserRole, ExpenseStatus, TicketStatus, TaskStatus, Priority, PaymentMethod, ExpenseType, UnitType } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
@@ -14,7 +14,9 @@ async function main() {
     await prisma.ticket.deleteMany();
     await prisma.task.deleteMany();
     await prisma.unit.deleteMany();
-    await prisma.building.deleteMany();
+    await prisma.property.deleteMany(); // CAMBIADO: Building → Property
+    await prisma.userTenant.deleteMany(); // AGREGADO
+    await prisma.tenant.deleteMany(); // AGREGADO
     await prisma.subscription.deleteMany();
     await prisma.user.deleteMany();
     await prisma.refreshToken.deleteMany();
@@ -22,7 +24,18 @@ async function main() {
 
     console.log('Database cleaned');
 
-    // Crear usuario admin PRIMERO (necesario para crear el building)
+    // 1. CREAR TENANT PRINCIPAL
+    const tenant = await prisma.tenant.create({
+      data: {
+        name: 'Consorcio Edificio Central',
+        description: 'Edificio principal de administración',
+        isActive: true
+      }
+    });
+
+    console.log('Tenant created:', tenant.name);
+
+    // 2. Crear usuario admin
     const adminPasswordHash = await bcrypt.hash('admin123', 12);
     const admin = await prisma.user.create({
       data: {
@@ -35,12 +48,23 @@ async function main() {
 
     console.log('Admin user created:', admin.email);
 
-    // Crear suscripción para el admin
+    // 3. Asociar admin al tenant
+    await prisma.userTenant.create({
+      data: {
+        userId: admin.id,
+        tenantId: tenant.id,
+        role: UserRole.ADMIN
+      }
+    });
+
+    console.log('Admin associated with tenant');
+
+    // 4. Crear suscripción para el admin
     const subscription = await prisma.subscription.create({
       data: {
         plan: 'PROFESSIONAL',
         status: 'ACTIVE',
-        maxBuildings: 5,
+        maxProperties: 5, // CAMBIADO: maxBuildings → maxProperties
         maxUsers: 50,
         features: {
           advancedReports: true,
@@ -56,13 +80,14 @@ async function main() {
 
     console.log('Subscription created for admin');
 
-    // Crear edificio de ejemplo (con ownerId)
-    const building = await prisma.building.create({
+    // 5. Crear propiedad de ejemplo (con ownerId y tenantId)
+    const property = await prisma.property.create({ // CAMBIADO: Building → Property
       data: {
         name: 'Edificio Central',
         address: 'Av. Principal 123',
         city: 'Buenos Aires',
-        ownerId: admin.id, // IMPORTANTE: agregar ownerId
+        ownerId: admin.id,
+        tenantId: tenant.id, // AGREGADO: tenantId
         settings: {
           currency: 'ARS',
           language: 'es',
@@ -71,9 +96,9 @@ async function main() {
       },
     });
 
-    console.log('Building created:', building.name);
+    console.log('Property created:', property.name);
 
-    // Crear unidades para el edificio
+    // 6. Crear unidades para la propiedad (con tenantId)
     const unit1 = await prisma.unit.create({
       data: {
         number: '4A',
@@ -83,7 +108,8 @@ async function main() {
         bedrooms: 2,
         bathrooms: 1,
         features: ['Balcón', 'Cocina equipada'],
-        buildingId: building.id,
+        propertyId: property.id, // CAMBIADO: buildingId → propertyId
+        tenantId: tenant.id, // AGREGADO: tenantId
         isOccupied: true,
       },
     });
@@ -97,14 +123,15 @@ async function main() {
         bedrooms: 3,
         bathrooms: 2,
         features: ['Terraza', 'Vista al mar'],
-        buildingId: building.id,
+        propertyId: property.id, // CAMBIADO: buildingId → propertyId
+        tenantId: tenant.id, // AGREGADO: tenantId
         isOccupied: true,
       },
     });
 
     console.log('Units created');
 
-    // Crear usuario mantenimiento
+    // 7. Crear usuario mantenimiento
     const maintenancePasswordHash = await bcrypt.hash('mant123', 12);
     const maintenance = await prisma.user.create({
       data: {
@@ -115,9 +142,18 @@ async function main() {
       },
     });
 
+    // Asociar mantenimiento al tenant
+    await prisma.userTenant.create({
+      data: {
+        userId: maintenance.id,
+        tenantId: tenant.id,
+        role: UserRole.MAINTENANCE
+      }
+    });
+
     console.log('Maintenance user created:', maintenance.email);
 
-    // Crear usuario residente (con unidad asignada)
+    // 8. Crear usuario residente (con unidad asignada)
     const residentPasswordHash = await bcrypt.hash('resi123', 12);
     const resident = await prisma.user.create({
       data: {
@@ -131,7 +167,16 @@ async function main() {
       },
     });
 
-    // Crear segundo residente
+    // Asociar residente al tenant
+    await prisma.userTenant.create({
+      data: {
+        userId: resident.id,
+        tenantId: tenant.id,
+        role: UserRole.RESIDENT
+      }
+    });
+
+    // 9. Crear segundo residente
     const resident2PasswordHash = await bcrypt.hash('resi123', 12);
     const resident2 = await prisma.user.create({
       data: {
@@ -145,9 +190,18 @@ async function main() {
       },
     });
 
+    // Asociar segundo residente al tenant
+    await prisma.userTenant.create({
+      data: {
+        userId: resident2.id,
+        tenantId: tenant.id,
+        role: UserRole.RESIDENT
+      }
+    });
+
     console.log('Resident users created');
 
-    // Crear expensas de ejemplo (con unitId y tipo)
+    // 10. Crear expensas de ejemplo (con propertyId y tenantId)
     const expense1 = await prisma.expense.create({
       data: {
         concept: 'Expensas Ordinarias Enero 2024',
@@ -156,7 +210,8 @@ async function main() {
         period: '2024-01',
         type: ExpenseType.ORDINARY,
         status: ExpenseStatus.OPEN,
-        buildingId: building.id,
+        propertyId: property.id, // CAMBIADO: buildingId → propertyId
+        tenantId: tenant.id, // AGREGADO: tenantId
         unitId: unit1.id,
       },
     });
@@ -169,14 +224,15 @@ async function main() {
         period: '2024-01',
         type: ExpenseType.FUND,
         status: ExpenseStatus.OPEN,
-        buildingId: building.id,
+        propertyId: property.id, // CAMBIADO: buildingId → propertyId
+        tenantId: tenant.id, // AGREGADO: tenantId
         unitId: unit2.id,
       },
     });
 
     console.log('Expenses created');
 
-    // Crear tickets de ejemplo (con buildingId y unitId)
+    // 11. Crear tickets de ejemplo (con propertyId y tenantId)
     const ticket1 = await prisma.ticket.create({
       data: {
         title: 'Fuga de agua en baño',
@@ -185,7 +241,8 @@ async function main() {
         priority: Priority.HIGH,
         category: 'PLUMBING',
         userId: resident.id,
-        buildingId: building.id,
+        propertyId: property.id, // CAMBIADO: buildingId → propertyId
+        tenantId: tenant.id, // AGREGADO: tenantId
         unitId: unit1.id,
         assignedToId: maintenance.id,
         photos: [],
@@ -200,7 +257,8 @@ async function main() {
         priority: Priority.MEDIUM,
         category: 'ELECTRICAL',
         userId: resident2.id,
-        buildingId: building.id,
+        propertyId: property.id, // CAMBIADO: buildingId → propertyId
+        tenantId: tenant.id, // AGREGADO: tenantId
         unitId: unit2.id,
         assignedToId: maintenance.id,
         photos: [],
@@ -209,7 +267,7 @@ async function main() {
 
     console.log('Tickets created');
 
-    // Crear tareas de ejemplo (con buildingId)
+    // 12. Crear tareas de ejemplo (con propertyId y tenantId)
     const task1 = await prisma.task.create({
       data: {
         title: 'Reparar fuga de agua reportada',
@@ -218,7 +276,8 @@ async function main() {
         priority: Priority.HIGH,
         assignedToId: maintenance.id,
         createdById: admin.id,
-        buildingId: building.id,
+        propertyId: property.id, // CAMBIADO: buildingId → propertyId
+        tenantId: tenant.id, // AGREGADO: tenantId
         dueDate: new Date('2024-01-20'),
         photos: [],
       },
@@ -232,7 +291,8 @@ async function main() {
         priority: Priority.MEDIUM,
         assignedToId: maintenance.id,
         createdById: admin.id,
-        buildingId: building.id,
+        propertyId: property.id, // CAMBIADO: buildingId → propertyId
+        tenantId: tenant.id, // AGREGADO: tenantId
         dueDate: new Date('2024-02-01'),
         photos: [],
       },
@@ -240,7 +300,7 @@ async function main() {
 
     console.log('Tasks created');
 
-    // Crear pagos de ejemplo (con unitId)
+    // 13. Crear pagos de ejemplo (con tenantId)
     const payment1 = await prisma.payment.create({
       data: {
         amount: 25000.00,
@@ -249,6 +309,7 @@ async function main() {
         expenseId: expense1.id,
         userId: resident.id,
         unitId: unit1.id,
+        tenantId: tenant.id, // AGREGADO: tenantId
         receiptUrl: 'https://example.com/receipts/001',
       },
     });
@@ -261,6 +322,7 @@ async function main() {
         expenseId: expense2.id,
         userId: resident2.id,
         unitId: unit2.id,
+        tenantId: tenant.id, // AGREGADO: tenantId
       },
     });
 
@@ -268,8 +330,9 @@ async function main() {
 
     console.log('✅ Seed completed successfully!');
     console.log('📊 Summary:');
+    console.log(`- Tenant: ${tenant.name}`);
     console.log(`- Users: 4 (Admin, Maintenance, 2 Residents)`);
-    console.log(`- Building: 1 with 2 units`);
+    console.log(`- Property: 1 with 2 units`);
     console.log(`- Expenses: 2`);
     console.log(`- Tickets: 2`);
     console.log(`- Tasks: 2`);

@@ -1,10 +1,11 @@
-import { Priority } from '@prisma/client';
+import { Priority, TicketStatus } from '@prisma/client';
 export declare class CreateTicketDto {
     title: string;
     description: string;
     priority?: Priority;
+    status?: TicketStatus;
     category: string;
-    buildingId: string;
+    propertyId: string;
     unitId?: string;
     assignedTo?: string;
     photos?: string[];

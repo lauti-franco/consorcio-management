@@ -14,6 +14,7 @@ export declare class SubscriptionsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        userId: string;
         plan: import(".prisma/client").$Enums.PlanType;
         status: import(".prisma/client").$Enums.SubscriptionStatus;
         stripeSubscriptionId: string | null;
@@ -21,10 +22,9 @@ export declare class SubscriptionsController {
         currentPeriodStart: Date | null;
         currentPeriodEnd: Date | null;
         cancelAtPeriodEnd: boolean;
-        maxBuildings: number;
+        maxProperties: number;
         maxUsers: number;
         features: import("@prisma/client/runtime/library").JsonValue;
-        userId: string;
     }>;
     findAll(user: any): Promise<({
         user: {
@@ -36,6 +36,7 @@ export declare class SubscriptionsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        userId: string;
         plan: import(".prisma/client").$Enums.PlanType;
         status: import(".prisma/client").$Enums.SubscriptionStatus;
         stripeSubscriptionId: string | null;
@@ -43,10 +44,9 @@ export declare class SubscriptionsController {
         currentPeriodStart: Date | null;
         currentPeriodEnd: Date | null;
         cancelAtPeriodEnd: boolean;
-        maxBuildings: number;
+        maxProperties: number;
         maxUsers: number;
         features: import("@prisma/client/runtime/library").JsonValue;
-        userId: string;
     })[]>;
     findOne(id: string, user: any): Promise<{
         user: {
@@ -58,6 +58,7 @@ export declare class SubscriptionsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        userId: string;
         plan: import(".prisma/client").$Enums.PlanType;
         status: import(".prisma/client").$Enums.SubscriptionStatus;
         stripeSubscriptionId: string | null;
@@ -65,15 +66,15 @@ export declare class SubscriptionsController {
         currentPeriodStart: Date | null;
         currentPeriodEnd: Date | null;
         cancelAtPeriodEnd: boolean;
-        maxBuildings: number;
+        maxProperties: number;
         maxUsers: number;
         features: import("@prisma/client/runtime/library").JsonValue;
-        userId: string;
     }>;
     update(id: string, updateSubscriptionDto: UpdateSubscriptionDto, user: any): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        userId: string;
         plan: import(".prisma/client").$Enums.PlanType;
         status: import(".prisma/client").$Enums.SubscriptionStatus;
         stripeSubscriptionId: string | null;
@@ -81,15 +82,15 @@ export declare class SubscriptionsController {
         currentPeriodStart: Date | null;
         currentPeriodEnd: Date | null;
         cancelAtPeriodEnd: boolean;
-        maxBuildings: number;
+        maxProperties: number;
         maxUsers: number;
         features: import("@prisma/client/runtime/library").JsonValue;
-        userId: string;
     }>;
     remove(id: string, user: any): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        userId: string;
         plan: import(".prisma/client").$Enums.PlanType;
         status: import(".prisma/client").$Enums.SubscriptionStatus;
         stripeSubscriptionId: string | null;
@@ -97,9 +98,8 @@ export declare class SubscriptionsController {
         currentPeriodStart: Date | null;
         currentPeriodEnd: Date | null;
         cancelAtPeriodEnd: boolean;
-        maxBuildings: number;
+        maxProperties: number;
         maxUsers: number;
         features: import("@prisma/client/runtime/library").JsonValue;
-        userId: string;
     }>;
 }

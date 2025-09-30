@@ -1,150 +1,162 @@
 import { PrismaService } from '../prisma/prisma.service';
+import { UserRole } from '@prisma/client';
+export interface AdminDashboard {
+    overview: {
+        totalProperties: number;
+        totalUnits: number;
+        totalResidents: number;
+        activeTickets: number;
+        pendingExpenses: number;
+        monthlyRevenue: number;
+        collectionRate: number;
+        occupancyRate: number;
+    };
+    properties: PropertyStats;
+    expenseTrends: ExpenseTrend[];
+    recentActivities: RecentActivity[];
+    delinquency: DelinquencyStats;
+    quickStats: QuickStats;
+}
+export interface ResidentDashboard {
+    user: {
+        name: string;
+        email: string;
+        role: UserRole;
+    };
+    overview: {
+        totalDue: number;
+        activeTickets: number;
+        managedUnits: number;
+        nextDueDate?: Date;
+    };
+    recentExpenses: ResidentExpense[];
+    recentTickets: ResidentTicket[];
+    paymentHistory: PaymentHistory[];
+    financialSummary: FinancialSummary;
+}
+export interface MaintenanceDashboard {
+    overview: {
+        assignedTickets: number;
+        completedThisMonth: number;
+        activeProperties: number;
+        averageResolutionTime: number;
+    };
+    assignedTickets: MaintenanceTicket[];
+    properties: MaintenanceProperty[];
+    priorityBreakdown: PriorityBreakdown;
+    performanceMetrics: PerformanceMetrics;
+}
+interface PropertyStats {
+    total: number;
+    active: number;
+    occupancyRate: number;
+}
+interface ExpenseTrend {
+    period: string;
+    total: number;
+    collected: number;
+    pending: number;
+}
+interface RecentActivity {
+    type: 'PAYMENT' | 'TICKET' | 'EXPENSE' | 'TASK';
+    description: string;
+    date: Date;
+    propertyName: string;
+    amount?: number;
+}
+interface DelinquencyStats {
+    overdueExpenses: number;
+    totalOverdueAmount: number;
+    delinquencyRate: number;
+    topDelinquentUnits: DelinquentUnit[];
+}
+interface QuickStats {
+    pendingTasks: number;
+    openTickets: number;
+    scheduledTasks: number;
+    overdueExpenses: number;
+}
+interface ResidentExpense {
+    id: string;
+    concept: string;
+    amount: number;
+    dueDate: Date;
+    status: string;
+    property: string;
+    unit: string;
+    paidAmount: number;
+    remainingAmount: number;
+}
+interface ResidentTicket {
+    id: string;
+    title: string;
+    status: string;
+    priority: string;
+    createdAt: Date;
+    property: string;
+    unit: string;
+}
+interface PaymentHistory {
+    id: string;
+    date: Date;
+    amount: number;
+    concept: string;
+    method: string;
+    status: string;
+}
+interface FinancialSummary {
+    totalPaid: number;
+    pendingAmount: number;
+    upcomingExpenses: number;
+}
+interface MaintenanceTicket {
+    id: string;
+    title: string;
+    status: string;
+    priority: string;
+    createdAt: Date;
+    property: {
+        id: string;
+        name: string;
+    };
+    unit: {
+        id: string;
+        number: string;
+    };
+    user: {
+        name: string;
+        phone: string;
+    };
+}
+interface MaintenanceProperty {
+    id: string;
+    name: string;
+    activeTickets: number;
+}
+interface PriorityBreakdown {
+    high: number;
+    medium: number;
+    low: number;
+}
+interface PerformanceMetrics {
+    resolutionRate: number;
+    averageResponseTime: number;
+    customerSatisfaction: number;
+}
+interface DelinquentUnit {
+    unitNumber: string;
+    propertyName: string;
+    overdueAmount: number;
+    daysOverdue: number;
+}
 export declare class DashboardService {
     private prisma;
     constructor(prisma: PrismaService);
-    getAdminDashboard(userId: string): Promise<{
-        overview: {
-            totalBuildings: number;
-            totalUnits: number;
-            totalResidents: number;
-            activeTickets: number;
-            pendingExpenses: number;
-            monthlyRevenue: number;
-            collectionRate: number;
-        };
-        buildings: {
-            total: number;
-            active: number;
-        };
-        expenseTrends: {
-            period: string;
-            total: any;
-            collected: any;
-        }[];
-        recentActivities: {
-            type: string;
-            description: string;
-            date: Date;
-            buildingName: string;
-        }[];
-    }>;
-    getResidentDashboard(userId: string): Promise<{
-        user: {
-            name: string;
-            email: string;
-            role: import(".prisma/client").$Enums.UserRole;
-        };
-        overview: {
-            totalDue: number;
-            activeTickets: number;
-            managedUnits: number;
-        };
-        recentExpenses: {
-            building: string;
-            unit: string;
-            paidAmount: number;
-            payments: {
-                id: string;
-                status: import(".prisma/client").$Enums.PaymentStatus;
-                userId: string;
-                amount: number;
-                unitId: string;
-                date: Date;
-                method: import(".prisma/client").$Enums.PaymentMethod;
-                transactionId: string | null;
-                receiptUrl: string | null;
-                expenseId: string;
-            }[];
-            id: string;
-            createdAt: Date;
-            updatedAt: Date;
-            status: import(".prisma/client").$Enums.ExpenseStatus;
-            userId: string | null;
-            type: import(".prisma/client").$Enums.ExpenseType;
-            buildingId: string;
-            concept: string;
-            amount: number;
-            dueDate: Date;
-            period: string | null;
-            unitId: string | null;
-        }[];
-        recentTickets: {
-            building: string;
-            unit: string;
-            id: string;
-            createdAt: Date;
-            updatedAt: Date;
-            status: import(".prisma/client").$Enums.TicketStatus;
-            userId: string;
-            buildingId: string;
-            unitId: string | null;
-            title: string;
-            description: string;
-            priority: import(".prisma/client").$Enums.Priority;
-            category: string;
-            photos: string[];
-            assignedToId: string | null;
-        }[];
-    }>;
-    getMaintenanceDashboard(userId: string): Promise<{
-        overview: {
-            assignedTickets: number;
-            completedThisMonth: number;
-            activeBuildings: number;
-        };
-        assignedTickets: ({
-            user: {
-                name: string;
-                phone: string;
-            };
-            building: {
-                id: string;
-                name: string;
-                isActive: boolean;
-                createdAt: Date;
-                updatedAt: Date;
-                address: string;
-                city: string;
-                settings: import("@prisma/client/runtime/library").JsonValue;
-                ownerId: string;
-            };
-            unit: {
-                number: string;
-                id: string;
-                features: string[];
-                floor: number;
-                type: import(".prisma/client").$Enums.UnitType;
-                area: number;
-                bedrooms: number | null;
-                bathrooms: number | null;
-                isOccupied: boolean;
-                buildingId: string;
-                managerId: string | null;
-            };
-        } & {
-            id: string;
-            createdAt: Date;
-            updatedAt: Date;
-            status: import(".prisma/client").$Enums.TicketStatus;
-            userId: string;
-            buildingId: string;
-            unitId: string | null;
-            title: string;
-            description: string;
-            priority: import(".prisma/client").$Enums.Priority;
-            category: string;
-            photos: string[];
-            assignedToId: string | null;
-        })[];
-        buildings: {
-            id: string;
-            name: string;
-            _count: {
-                tickets: number;
-            };
-        }[];
-    }>;
-    private getBuildingStats;
+    getDashboardByRole(userId: string, tenantId: string, userRole: UserRole): Promise<AdminDashboard | ResidentDashboard | MaintenanceDashboard>;
+    getAdminDashboard(userId: string, tenantId: string): Promise<AdminDashboard>;
+    getResidentDashboard(userId: string, tenantId: string): Promise<ResidentDashboard>;
+    getMaintenanceDashboard(userId: string, tenantId: string): Promise<MaintenanceDashboard>;
+    private getPropertyStats;
     private getUnitStats;
     private getResidentStats;
     private getActiveTickets;
@@ -153,4 +165,16 @@ export declare class DashboardService {
     private calculateCollectionRate;
     private getExpenseTrends;
     private getRecentActivities;
+    private getDelinquencyStats;
+    private getQuickStats;
+    private getResidentUserData;
+    private getPaymentHistory;
+    private getFinancialSummary;
+    private getNextDueDate;
+    private getAssignedTickets;
+    private getCompletedTicketsCount;
+    private getMaintenanceProperties;
+    private getPriorityBreakdown;
+    private getPerformanceMetrics;
 }
+export {};

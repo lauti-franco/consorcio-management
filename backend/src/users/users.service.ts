@@ -1,3 +1,4 @@
+// src/users/users.service.ts - CORREGIDO PARA MULTI-TENANT
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserRole } from '@prisma/client';
@@ -6,33 +7,52 @@ import { UserRole } from '@prisma/client';
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(currentUserId: string, currentUserRole: UserRole, role?: UserRole, buildingId?: string) {
+  async findAll(currentUserId: string, currentUserRole: UserRole, tenantId: string, role?: UserRole, propertyId?: string) {
     const where: any = {};
     
     if (role) {
       where.role = role;
     }
     
-    // Filtrar según permisos del usuario actual
+    // Filtrar según permisos del usuario actual en este tenant
     if (currentUserRole === UserRole.RESIDENT) {
-      // Residentes solo pueden ver usuarios de sus mismas unidades/edificios
+      // Residentes solo pueden ver usuarios de sus mismas unidades/propiedades en este tenant
+      where.userTenants = {
+        some: {
+          tenantId: tenantId,
+          role: UserRole.RESIDENT
+        }
+      };
       where.managedUnits = {
         some: {
-          building: {
+          property: { // CAMBIADO: building → property
             units: {
               some: {
                 managerId: currentUserId,
               },
             },
           },
+          tenantId: tenantId
         },
       };
     } else if (currentUserRole === UserRole.ADMIN) {
-      // Admins ven usuarios de sus edificios
+      // Admins ven usuarios de sus propiedades en este tenant
+      where.userTenants = {
+        some: {
+          tenantId: tenantId
+        }
+      };
       where.OR = [
-        { ownedBuildings: { some: { ownerId: currentUserId } } }, // Dueños de edificios
-        { managedUnits: { some: { building: { ownerId: currentUserId } } } }, // Managers de unidades
+        { ownedProperties: { some: { ownerId: currentUserId, tenantId: tenantId } } }, // CAMBIADO: ownedBuildings → ownedProperties
+        { managedUnits: { some: { property: { ownerId: currentUserId, tenantId: tenantId } } } }, // CAMBIADO: building → property
       ];
+    } else if (currentUserRole === UserRole.MAINTENANCE) {
+      // Personal de mantenimiento ve usuarios del mismo tenant
+      where.userTenants = {
+        some: {
+          tenantId: tenantId
+        }
+      };
     }
     // SUPER_ADMIN puede ver todos los usuarios
 
@@ -57,17 +77,19 @@ export class UsersService {
             currentPeriodEnd: true,
           },
         },
-        ownedBuildings: {
+        ownedProperties: { // CAMBIADO: ownedBuildings → ownedProperties
+          where: { tenantId: tenantId },
           select: {
             id: true,
             name: true,
           },
         },
         managedUnits: {
+          where: { tenantId: tenantId },
           select: {
             id: true,
             number: true,
-            building: {
+            property: { // CAMBIADO: building → property
               select: {
                 id: true,
                 name: true,
@@ -75,13 +97,25 @@ export class UsersService {
             },
           },
         },
+        userTenants: {
+          where: { tenantId: tenantId },
+          select: {
+            role: true,
+            tenant: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        }
       },
     });
   }
 
-  async findOne(id: string, currentUserId: string, currentUserRole: UserRole) {
+  async findOne(id: string, currentUserId: string, currentUserRole: UserRole, tenantId: string) {
     // Verificar permisos de acceso primero
-    await this.verifyUserAccess(id, currentUserId, currentUserRole);
+    await this.verifyUserAccess(id, currentUserId, currentUserRole, tenantId);
 
     const user = await this.prisma.user.findUnique({
       where: { id },
@@ -107,7 +141,8 @@ export class UsersService {
             features: true,
           },
         },
-        ownedBuildings: {
+        ownedProperties: { // CAMBIADO: ownedBuildings → ownedProperties
+          where: { tenantId: tenantId },
           select: {
             id: true,
             name: true,
@@ -122,13 +157,14 @@ export class UsersService {
           },
         },
         managedUnits: {
+          where: { tenantId: tenantId },
           select: {
             id: true,
             number: true,
             floor: true,
             type: true,
             area: true,
-            building: {
+            property: { // CAMBIADO: building → property
               select: {
                 id: true,
                 name: true,
@@ -144,6 +180,18 @@ export class UsersService {
             },
           },
         },
+        userTenants: {
+          where: { tenantId: tenantId },
+          select: {
+            role: true,
+            tenant: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        }
       },
     });
 
@@ -154,9 +202,9 @@ export class UsersService {
     return user;
   }
 
-  async update(id: string, updateData: any, currentUserId: string, currentUserRole: UserRole) {
+  async update(id: string, updateData: any, currentUserId: string, currentUserRole: UserRole, tenantId: string) {
     // Verificar permisos de acceso
-    await this.verifyUserAccess(id, currentUserId, currentUserRole);
+    await this.verifyUserAccess(id, currentUserId, currentUserRole, tenantId);
 
     try {
       return await this.prisma.user.update({
@@ -181,59 +229,72 @@ export class UsersService {
     }
   }
 
-  async deactivate(id: string, currentUserId: string, currentUserRole: UserRole) {
+  async deactivate(id: string, currentUserId: string, currentUserRole: UserRole, tenantId: string) {
     // No permitir desactivarse a sí mismo
     if (id === currentUserId) {
       throw new ForbiddenException('No puedes desactivar tu propia cuenta');
     }
 
     // Verificar permisos de acceso
-    await this.verifyUserAccess(id, currentUserId, currentUserRole);
+    await this.verifyUserAccess(id, currentUserId, currentUserRole, tenantId);
 
     try {
-      return await this.prisma.user.update({
-        where: { id },
-        data: { isActive: false },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          isActive: true,
+      // Solo desactivar del tenant específico, no globalmente
+      await this.prisma.userTenant.update({
+        where: {
+          userId_tenantId: {
+            userId: id,
+            tenantId: tenantId
+          }
         },
+        data: { role: UserRole.RESIDENT } // O podríamos eliminar la relación
       });
+
+      return { 
+        message: 'Usuario desactivado del tenant exitosamente',
+        userId: id,
+        tenantId: tenantId
+      };
     } catch {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('User not found in this tenant');
     }
   }
 
-  async remove(id: string, currentUserId: string, currentUserRole: UserRole) {
+  async remove(id: string, currentUserId: string, currentUserRole: UserRole, tenantId: string) {
     // No permitir eliminarse a sí mismo
     if (id === currentUserId) {
       throw new ForbiddenException('No puedes eliminar tu propia cuenta');
     }
 
-    // Solo SUPER_ADMIN puede eliminar usuarios
+    // Solo SUPER_ADMIN puede eliminar usuarios del tenant
     if (currentUserRole !== UserRole.SUPER_ADMIN) {
-      throw new ForbiddenException('Solo los super administradores pueden eliminar usuarios');
+      throw new ForbiddenException('Solo los super administradores pueden eliminar usuarios del tenant');
     }
 
     // Verificar permisos de acceso
-    await this.verifyUserAccess(id, currentUserId, currentUserRole);
+    await this.verifyUserAccess(id, currentUserId, currentUserRole, tenantId);
 
     try {
-      return await this.prisma.user.delete({
-        where: { id },
+      // Solo eliminar la relación con el tenant, no el usuario global
+      return await this.prisma.userTenant.delete({
+        where: {
+          userId_tenantId: {
+            userId: id,
+            tenantId: tenantId
+          }
+        }
       });
     } catch {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('User not found in this tenant');
     }
   }
 
-  async getUserStats(userId: string) {
+  async getUserStats(userId: string, tenantId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
-        ownedBuildings: {
+        ownedProperties: { // CAMBIADO: ownedBuildings → ownedProperties
+          where: { tenantId: tenantId },
           include: {
             _count: {
               select: {
@@ -245,6 +306,7 @@ export class UsersService {
           },
         },
         managedUnits: {
+          where: { tenantId: tenantId },
           include: {
             _count: {
               select: {
@@ -257,11 +319,21 @@ export class UsersService {
         },
         _count: {
           select: {
-            ownedBuildings: true,
-            managedUnits: true,
-            createdTasks: true,
-            assignedTasks: true,
-            tickets: true,
+            ownedProperties: {
+              where: { tenantId: tenantId }
+            },
+            managedUnits: {
+              where: { tenantId: tenantId }
+            },
+            createdTasks: {
+              where: { tenantId: tenantId }
+            },
+            assignedTasks: {
+              where: { tenantId: tenantId }
+            },
+            tickets: {
+              where: { tenantId: tenantId }
+            },
           },
         },
       },
@@ -279,47 +351,74 @@ export class UsersService {
         role: user.role,
       },
       stats: {
-        ownedBuildings: user._count.ownedBuildings,
+        ownedProperties: user._count.ownedProperties, // CAMBIADO: ownedBuildings → ownedProperties
         managedUnits: user._count.managedUnits,
         createdTasks: user._count.createdTasks,
         assignedTasks: user._count.assignedTasks,
         tickets: user._count.tickets,
       },
-      buildings: user.ownedBuildings.map(building => ({
-        id: building.id,
-        name: building.name,
-        units: building._count.units,
-        expenses: building._count.expenses,
-        tickets: building._count.tickets,
+      properties: user.ownedProperties.map(property => ({ // CAMBIADO: buildings → properties
+        id: property.id,
+        name: property.name,
+        units: property._count.units,
+        expenses: property._count.expenses,
+        tickets: property._count.tickets,
       })),
     };
   }
 
-  private async verifyUserAccess(targetUserId: string, currentUserId: string, currentUserRole: UserRole) {
+  private async verifyUserAccess(targetUserId: string, currentUserId: string, currentUserRole: UserRole, tenantId: string) {
     if (currentUserRole === UserRole.SUPER_ADMIN) {
       return true; // SUPER_ADMIN tiene acceso completo
     }
 
+    // Verificar que el usuario objetivo tiene acceso al tenant
+    const targetUserTenant = await this.prisma.userTenant.findUnique({
+      where: {
+        userId_tenantId: {
+          userId: targetUserId,
+          tenantId: tenantId
+        }
+      }
+    });
+
+    if (!targetUserTenant) {
+      throw new ForbiddenException('El usuario no tiene acceso a este tenant');
+    }
+
     if (currentUserRole === UserRole.ADMIN) {
-      // Admins solo pueden acceder a usuarios de sus edificios
+      // Admins solo pueden acceder a usuarios de sus propiedades en este tenant
       const userAccess = await this.prisma.user.findFirst({
         where: {
           id: targetUserId,
+          userTenants: {
+            some: {
+              tenantId: tenantId
+            }
+          },
           OR: [
-            { ownedBuildings: { some: { ownerId: currentUserId } } },
-            { managedUnits: { some: { building: { ownerId: currentUserId } } } },
+            { ownedProperties: { some: { ownerId: currentUserId, tenantId: tenantId } } }, // CAMBIADO: ownedBuildings → ownedProperties
+            { managedUnits: { some: { property: { ownerId: currentUserId, tenantId: tenantId } } } }, // CAMBIADO: building → property
           ],
         },
       });
 
       if (!userAccess) {
-        throw new ForbiddenException('No tienes permisos para acceder a este usuario');
+        throw new ForbiddenException('No tienes permisos para acceder a este usuario en este tenant');
       }
       return true;
     }
 
     if (currentUserRole === UserRole.RESIDENT) {
-      // Residentes solo pueden acceder a su propia información
+      // Residentes solo pueden acceder a su propia información en este tenant
+      if (targetUserId !== currentUserId) {
+        throw new ForbiddenException('Solo puedes acceder a tu propia información en este tenant');
+      }
+      return true;
+    }
+
+    if (currentUserRole === UserRole.MAINTENANCE) {
+      // Personal de mantenimiento solo puede acceder a su propia información
       if (targetUserId !== currentUserId) {
         throw new ForbiddenException('Solo puedes acceder a tu propia información');
       }

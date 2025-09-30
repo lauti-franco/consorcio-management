@@ -1,10 +1,15 @@
+import { Request } from 'express';
 import { BuildingsService } from './buildings.service';
 import { CreateBuildingDto } from './dto/create-building.dto';
 import { UpdateBuildingDto } from './dto/update-building.dto';
 export declare class BuildingsController {
     private readonly buildingsService;
     constructor(buildingsService: BuildingsService);
-    create(createBuildingDto: CreateBuildingDto, userId: string): Promise<{
+    create(req: Request, createBuildingDto: CreateBuildingDto): Promise<{
+        tenant: {
+            id: string;
+            name: string;
+        };
         owner: {
             id: string;
             name: string;
@@ -16,12 +21,13 @@ export declare class BuildingsController {
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         address: string;
         city: string;
         settings: import("@prisma/client/runtime/library").JsonValue;
         ownerId: string;
     }>;
-    findAll(userId: string, userRole: string): Promise<({
+    findAll(req: Request): Promise<({
         owner: {
             id: string;
             name: string;
@@ -29,8 +35,8 @@ export declare class BuildingsController {
         };
         _count: {
             expenses: number;
-            tickets: number;
             units: number;
+            tickets: number;
         };
     } & {
         id: string;
@@ -38,18 +44,13 @@ export declare class BuildingsController {
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         address: string;
         city: string;
         settings: import("@prisma/client/runtime/library").JsonValue;
         ownerId: string;
     })[]>;
-    findOne(id: string, userId: string, userRole: string): Promise<{
-        owner: {
-            id: string;
-            name: string;
-            email: string;
-            phone: string;
-        };
+    findOne(req: Request, id: string): Promise<{
         units: ({
             manager: {
                 id: string;
@@ -60,20 +61,27 @@ export declare class BuildingsController {
         } & {
             number: string;
             id: string;
+            tenantId: string;
             features: string[];
             floor: number;
             type: import(".prisma/client").$Enums.UnitType;
-            area: number;
+            area: number | null;
             bedrooms: number | null;
             bathrooms: number | null;
             isOccupied: boolean;
-            buildingId: string;
+            propertyId: string;
             managerId: string | null;
         })[];
+        owner: {
+            id: string;
+            name: string;
+            email: string;
+            phone: string;
+        };
         _count: {
             expenses: number;
-            tickets: number;
             units: number;
+            tickets: number;
         };
     } & {
         id: string;
@@ -81,12 +89,17 @@ export declare class BuildingsController {
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         address: string;
         city: string;
         settings: import("@prisma/client/runtime/library").JsonValue;
         ownerId: string;
     }>;
-    update(id: string, updateBuildingDto: UpdateBuildingDto, userId: string): Promise<{
+    update(req: Request, id: string, updateBuildingDto: UpdateBuildingDto): Promise<{
+        tenant: {
+            id: string;
+            name: string;
+        };
         owner: {
             id: string;
             name: string;
@@ -98,20 +111,40 @@ export declare class BuildingsController {
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         address: string;
         city: string;
         settings: import("@prisma/client/runtime/library").JsonValue;
         ownerId: string;
     }>;
-    remove(id: string, userId: string): Promise<{
+    remove(req: Request, id: string): Promise<{
         id: string;
         name: string;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
+        tenantId: string;
         address: string;
         city: string;
         settings: import("@prisma/client/runtime/library").JsonValue;
         ownerId: string;
     }>;
+    getStats(req: Request, id: string): Promise<{
+        totalUnits: number;
+        occupiedUnits: number;
+        activeTickets: number;
+        pendingExpenses: number;
+        monthlyRevenue: number;
+        totalResidents: number;
+        occupancyRate: number;
+    }>;
+    getTenantInfo(req: Request): {
+        tenant: {
+            id: string;
+            name: string;
+            description: string;
+        };
+        userRole: UserRole;
+        message: string;
+    };
 }

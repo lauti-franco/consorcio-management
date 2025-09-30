@@ -1,4 +1,4 @@
-// prisma/schema.prisma - CORREGIDO
+// prisma/schema.prisma - CORREGIDO CON RELACIONES COMPLETAS
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,12 +8,33 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Tenant {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones COMPLETAS - TODAS las relaciones inversas agregadas
+  userTenants UserTenant[]
+  properties  Property[]
+  expenses    Expense[]
+  units       Unit[]        // AGREGADO
+  payments    Payment[]     // AGREGADO
+  tickets     Ticket[]      // AGREGADO
+  tasks       Task[]        // AGREGADO
+  files       File[]        // AGREGADO
+  
+  @@map("tenants")
+}
+
 model User {
-  id              String    @id @default(uuid())
+  id              String    @id @default(cuid())
   name            String
   email           String    @unique
   passwordHash    String
-  role            UserRole
+  role            UserRole  @default(RESIDENT)
   phone           String?
   avatar          String?
   isActive        Boolean   @default(true)
@@ -24,10 +45,13 @@ model User {
 
   // Relaciones de SaaS
   subscription    Subscription?
-  ownedBuildings  Building[]  @relation("BuildingOwner")
+  ownedProperties Property[]  @relation("PropertyOwner")
   managedUnits    Unit[]      @relation("UnitManager")
   
-  // Relaciones existentes (mejoradas) - CORREGIDAS
+  // Relaciones multi-tenant
+  userTenants     UserTenant[]
+  
+  // Relaciones existentes
   expenses        Expense[]    @relation("ExpenseUser")
   payments        Payment[]
   tickets         Ticket[]     @relation("TicketReporter")
@@ -40,8 +64,21 @@ model User {
   @@map("users")
 }
 
+model UserTenant {
+  id       String   @id @default(cuid())
+  userId   String
+  tenantId String
+  role     UserRole @default(RESIDENT)
+
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tenantId])
+  @@map("user_tenants")
+}
+
 model Subscription {
-  id                    String   @id @default(uuid())
+  id                    String   @id @default(cuid())
   plan                  PlanType @default(STARTER)
   status                SubscriptionStatus @default(ACTIVE)
   stripeSubscriptionId  String?
@@ -51,7 +88,7 @@ model Subscription {
   cancelAtPeriodEnd     Boolean  @default(false)
   
   // Límites del plan
-  maxBuildings          Int      @default(1)
+  maxProperties         Int      @default(1)
   maxUsers              Int      @default(10)
   features              Json     @default("{}")
   
@@ -64,33 +101,8 @@ model Subscription {
   @@map("subscriptions")
 }
 
-model Unit {
-  id          String   @id @default(uuid())
-  number      String
-  floor       Int
-  type        UnitType @default(APARTMENT)
-  area        Float
-  bedrooms    Int?
-  bathrooms   Int?
-  isOccupied  Boolean  @default(false)
-  features    String[]
-
-  buildingId  String
-  building    Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
-  
-  // Relaciones mejoradas
-  managerId   String?
-  manager     User?    @relation("UnitManager", fields: [managerId], references: [id])
-  expenses    Expense[]
-  payments    Payment[]
-  tickets     Ticket[]  @relation("TicketUnit") // RELACIÓN AÑADIDA
-
-  @@unique([buildingId, number])
-  @@map("units")
-}
-
-model Building {
-  id        String   @id @default(uuid())
+model Property {
+  id        String   @id @default(cuid())
   name      String
   address   String
   city      String
@@ -99,19 +111,52 @@ model Building {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Relación con Tenant
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
   // Relaciones mejoradas
   ownerId   String
-  owner     User     @relation("BuildingOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  owner     User     @relation("PropertyOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   units     Unit[]
   expenses  Expense[]
   tickets   Ticket[]
-  tasks     Task[]    @relation("TaskBuilding") // RELACIÓN AÑADIDA
+  tasks     Task[]    @relation("TaskProperty")
 
-  @@map("buildings")
+  @@map("properties")
+}
+
+model Unit {
+  id          String   @id @default(cuid())
+  number      String
+  floor       Int
+  type        UnitType @default(APARTMENT)
+  area        Float?
+  bedrooms    Int?
+  bathrooms   Int?
+  isOccupied  Boolean  @default(false)
+  features    String[]
+
+  propertyId  String
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  
+  // Relaciones mejoradas
+  managerId   String?
+  manager     User?    @relation("UnitManager", fields: [managerId], references: [id])
+  expenses    Expense[]
+  payments    Payment[]
+  tickets     Ticket[]
+
+  // Relación con Tenant
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, number])
+  @@map("units")
 }
 
 model Expense {
-  id          String        @id @default(uuid())
+  id          String        @id @default(cuid())
   concept     String
   amount      Float
   dueDate     DateTime
@@ -119,15 +164,19 @@ model Expense {
   type        ExpenseType   @default(ORDINARY)
   status      ExpenseStatus @default(OPEN)
   
-  buildingId  String
-  building    Building      @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  propertyId  String
+  property    Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   
-  // Relaciones mejoradas - CORREGIDAS
+  // Relaciones mejoradas
   unitId      String?
   unit        Unit?         @relation(fields: [unitId], references: [id])
   userId      String?
-  user        User?         @relation("ExpenseUser", fields: [userId], references: [id]) // RELACIÓN AÑADIDA
+  user        User?         @relation("ExpenseUser", fields: [userId], references: [id])
   payments    Payment[]
+
+  // Relación con Tenant
+  tenantId    String
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -136,7 +185,7 @@ model Expense {
 }
 
 model Payment {
-  id          String        @id @default(uuid())
+  id          String        @id @default(cuid())
   amount      Float
   date        DateTime      @default(now())
   method      PaymentMethod
@@ -153,11 +202,15 @@ model Payment {
   unitId      String
   unit        Unit          @relation(fields: [unitId], references: [id])
 
+  // Relación con Tenant
+  tenantId    String
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
   @@map("payments")
 }
 
 model Ticket {
-  id           String       @id @default(uuid())
+  id           String       @id @default(cuid())
   title        String
   description  String
   priority     Priority     @default(MEDIUM)
@@ -170,12 +223,16 @@ model Ticket {
   assignedToId String?
   assignedTo   User?        @relation("TicketAssignee", fields: [assignedToId], references: [id])
   
-  buildingId   String
-  building     Building     @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  propertyId   String
+  property     Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   
   unitId       String?
-  unit         Unit?        @relation("TicketUnit", fields: [unitId], references: [id]) // RELACIÓN CORREGIDA
+  unit         Unit?        @relation(fields: [unitId], references: [id])
   
+  // Relación con Tenant
+  tenantId     String
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
   photos       String[]
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
@@ -184,7 +241,7 @@ model Ticket {
 }
 
 model Task {
-  id           String     @id @default(uuid())
+  id           String     @id @default(cuid())
   title        String
   description  String
   priority     Priority   @default(MEDIUM)
@@ -197,9 +254,13 @@ model Task {
   createdById  String
   createdBy    User       @relation("TaskCreator", fields: [createdById], references: [id])
   
-  buildingId   String
-  building     Building   @relation("TaskBuilding", fields: [buildingId], references: [id], onDelete: Cascade) // RELACIÓN CORREGIDA
+  propertyId   String
+  property     Property   @relation("TaskProperty", fields: [propertyId], references: [id], onDelete: Cascade)
   
+  // Relación con Tenant
+  tenantId     String
+  tenant       Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
   photos       String[]
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
@@ -208,22 +269,27 @@ model Task {
 }
 
 model File {
-  id         String   @id @default(uuid())
+  id         String   @id @default(cuid())
   key        String   @unique
   url        String
   mimeType   String
   size       Int
   uploadedBy String
   user       User     @relation(fields: [uploadedBy], references: [id])
+  
+  // Relación con Tenant
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
   createdAt  DateTime @default(now())
 
   @@map("files")
 }
 
 model RefreshToken {
-  id        String   @id @default(uuid())
+  id        String   @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   tokenHash String   @unique
   createdAt DateTime @default(now())
   expiresAt DateTime

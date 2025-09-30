@@ -1,3 +1,4 @@
+// src/units/units.service.ts - CORREGIDO PARA MULTI-TENANT
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUnitDto } from './dto/create-unit.dto';
@@ -7,26 +8,58 @@ import { UpdateUnitDto } from './dto/update-unit.dto';
 export class UnitsService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createUnitDto: CreateUnitDto, userId: string) {
-    // Verificar que el usuario es admin del edificio
-    const building = await this.prisma.building.findFirst({
+  async create(createUnitDto: CreateUnitDto & { tenantId: string }, userId: string) {
+    // Verificar que la propiedad existe y el usuario es owner en este tenant
+    const property = await this.prisma.property.findFirst({
       where: { 
-        id: createUnitDto.buildingId,
-        ownerId: userId 
+        id: createUnitDto.propertyId, // CAMBIADO: buildingId → propertyId
+        ownerId: userId,
+        tenantId: createUnitDto.tenantId
       },
     });
 
-    if (!building) {
-      throw new ForbiddenException('No tienes permisos para agregar unidades a este edificio');
+    if (!property) {
+      throw new ForbiddenException('No tienes permisos para agregar unidades a esta propiedad en este tenant');
+    }
+
+    // Si se asigna un manager, verificar que tiene acceso al tenant
+    if (createUnitDto.managerId) {
+      const managerTenant = await this.prisma.userTenant.findUnique({
+        where: {
+          userId_tenantId: {
+            userId: createUnitDto.managerId,
+            tenantId: createUnitDto.tenantId
+          }
+        }
+      });
+
+      if (!managerTenant) {
+        throw new ForbiddenException('El manager asignado no tiene acceso a este tenant');
+      }
     }
 
     return this.prisma.unit.create({
       data: {
-        ...createUnitDto,
+        number: createUnitDto.number,
+        floor: createUnitDto.floor,
+        type: createUnitDto.type,
+        area: createUnitDto.area,
+        bedrooms: createUnitDto.bedrooms,
+        bathrooms: createUnitDto.bathrooms,
+        isOccupied: createUnitDto.isOccupied || false,
         features: createUnitDto.features || [],
+        propertyId: createUnitDto.propertyId, // CAMBIADO: buildingId → propertyId
+        tenantId: createUnitDto.tenantId, // AGREGADO: tenantId
+        managerId: createUnitDto.managerId,
       },
       include: {
-        building: true,
+        property: { // CAMBIADO: building → property
+          select: {
+            id: true,
+            name: true,
+            address: true
+          }
+        },
         manager: {
           select: {
             id: true,
@@ -38,11 +71,12 @@ export class UnitsService {
     });
   }
 
-  async findAll(buildingId: string, userId: string) {
-    // Verificar permisos del edificio
-    const building = await this.prisma.building.findFirst({
+  async findAll(propertyId: string, userId: string, tenantId: string) {
+    // Verificar permisos de la propiedad en este tenant
+    const property = await this.prisma.property.findFirst({
       where: { 
-        id: buildingId,
+        id: propertyId,
+        tenantId: tenantId,
         OR: [
           { ownerId: userId },
           { units: { some: { managerId: userId } } }
@@ -50,14 +84,23 @@ export class UnitsService {
       },
     });
 
-    if (!building) {
-      throw new ForbiddenException('No tienes permisos para ver las unidades de este edificio');
+    if (!property) {
+      throw new ForbiddenException('No tienes permisos para ver las unidades de esta propiedad en este tenant');
     }
 
     return this.prisma.unit.findMany({
-      where: { buildingId },
+      where: { 
+        propertyId,
+        tenantId // AGREGADO: filtrar por tenant
+      },
       include: {
-        building: true,
+        property: { // CAMBIADO: building → property
+          select: {
+            id: true,
+            name: true,
+            address: true
+          }
+        },
         manager: {
           select: {
             id: true,
@@ -67,9 +110,15 @@ export class UnitsService {
         },
         _count: {
           select: {
-            expenses: true,
-            payments: true,
-            tickets: true,
+            expenses: {
+              where: { tenantId: tenantId }
+            },
+            payments: {
+              where: { tenantId: tenantId }
+            },
+            tickets: {
+              where: { tenantId: tenantId }
+            },
           },
         },
       },
@@ -77,18 +126,25 @@ export class UnitsService {
     });
   }
 
-  async findOne(id: string, userId: string) {
+  async findOne(id: string, userId: string, tenantId: string) {
     const unit = await this.prisma.unit.findFirst({
       where: { 
         id,
+        tenantId, // AGREGADO: filtrar por tenant
         OR: [
-          { building: { ownerId: userId } },
+          { property: { ownerId: userId, tenantId: tenantId } },
           { managerId: userId },
-          { building: { ownerId: userId } }
+          { property: { ownerId: userId, tenantId: tenantId } }
         ]
       },
       include: {
-        building: true,
+        property: { // CAMBIADO: building → property
+          select: {
+            id: true,
+            name: true,
+            address: true
+          }
+        },
         manager: {
           select: {
             id: true,
@@ -98,10 +154,12 @@ export class UnitsService {
           },
         },
         expenses: {
+          where: { tenantId: tenantId },
           take: 5,
           orderBy: { dueDate: 'desc' },
         },
         payments: {
+          where: { tenantId: tenantId },
           take: 10,
           orderBy: { date: 'desc' },
           include: {
@@ -116,6 +174,7 @@ export class UnitsService {
           },
         },
         tickets: {
+          where: { tenantId: tenantId },
           take: 5,
           orderBy: { createdAt: 'desc' },
         },
@@ -123,23 +182,52 @@ export class UnitsService {
     });
 
     if (!unit) {
-      throw new NotFoundException('Unit not found or no access');
+      throw new NotFoundException('Unit not found or no access in this tenant');
     }
 
     return unit;
   }
 
-  async update(id: string, updateUnitDto: UpdateUnitDto, userId: string) {
-    await this.verifyUnitAccess(id, userId);
+  async update(id: string, updateUnitDto: UpdateUnitDto, userId: string, tenantId: string) {
+    await this.verifyUnitAccess(id, userId, tenantId);
+
+    // Si se cambia el manager, verificar que tiene acceso al tenant
+    if (updateUnitDto.managerId) {
+      const managerTenant = await this.prisma.userTenant.findUnique({
+        where: {
+          userId_tenantId: {
+            userId: updateUnitDto.managerId,
+            tenantId: tenantId
+          }
+        }
+      });
+
+      if (!managerTenant) {
+        throw new ForbiddenException('El manager asignado no tiene acceso a este tenant');
+      }
+    }
 
     return this.prisma.unit.update({
       where: { id },
       data: {
-        ...updateUnitDto,
+        number: updateUnitDto.number,
+        floor: updateUnitDto.floor,
+        type: updateUnitDto.type,
+        area: updateUnitDto.area,
+        bedrooms: updateUnitDto.bedrooms,
+        bathrooms: updateUnitDto.bathrooms,
+        isOccupied: updateUnitDto.isOccupied,
         features: updateUnitDto.features || undefined,
+        managerId: updateUnitDto.managerId,
       },
       include: {
-        building: true,
+        property: { // CAMBIADO: building → property
+          select: {
+            id: true,
+            name: true,
+            address: true
+          }
+        },
         manager: {
           select: {
             id: true,
@@ -151,27 +239,29 @@ export class UnitsService {
     });
   }
 
-  async remove(id: string, userId: string) {
-    await this.verifyUnitAccess(id, userId);
+  async remove(id: string, userId: string, tenantId: string) {
+    await this.verifyUnitAccess(id, userId, tenantId);
 
     return this.prisma.unit.delete({
       where: { id },
     });
   }
 
-  async getUnitStats(id: string, userId: string) {
-    await this.verifyUnitAccess(id, userId);
+  async getUnitStats(id: string, userId: string, tenantId: string) {
+    await this.verifyUnitAccess(id, userId, tenantId);
 
     const [currentExpenses, paymentHistory, activeTickets] = await Promise.all([
       this.prisma.expense.findMany({
         where: {
           unitId: id,
+          tenantId: tenantId,
           status: { in: ['OPEN', 'OVERDUE'] },
         },
         include: {
           payments: {
             where: {
               unitId: id,
+              tenantId: tenantId,
             },
           },
         },
@@ -179,6 +269,7 @@ export class UnitsService {
       this.prisma.payment.findMany({
         where: {
           unitId: id,
+          tenantId: tenantId,
           status: 'COMPLETED',
         },
         orderBy: { date: 'desc' },
@@ -187,6 +278,7 @@ export class UnitsService {
       this.prisma.ticket.count({
         where: {
           unitId: id,
+          tenantId: tenantId,
           status: { in: ['OPEN', 'IN_PROGRESS'] },
         },
       }),
@@ -209,16 +301,20 @@ export class UnitsService {
     };
   }
 
-  private async verifyUnitAccess(unitId: string, userId: string) {
+  private async verifyUnitAccess(unitId: string, userId: string, tenantId: string) {
     const unit = await this.prisma.unit.findFirst({
       where: { 
         id: unitId,
-        building: { ownerId: userId }
+        tenantId: tenantId,
+        property: { 
+          ownerId: userId,
+          tenantId: tenantId
+        }
       },
     });
 
     if (!unit) {
-      throw new ForbiddenException('No tienes permisos para modificar esta unidad');
+      throw new ForbiddenException('No tienes permisos para modificar esta unidad en este tenant');
     }
 
     return unit;

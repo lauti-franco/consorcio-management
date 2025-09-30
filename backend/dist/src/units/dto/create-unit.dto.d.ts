@@ -6,7 +6,8 @@ export declare class CreateUnitDto {
     area: number;
     bedrooms?: number;
     bathrooms?: number;
+    isOccupied?: boolean;
     features?: string[];
     managerId?: string;
-    buildingId: string;
+    propertyId: string;
 }

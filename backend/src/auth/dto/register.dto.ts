@@ -1,6 +1,7 @@
+// src/auth/dto/register.dto.ts - ACTUALIZADO
 import { IsEmail, IsString, MinLength, IsEnum, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { UserRole } from '../../common/types';
+import { UserRole } from '@prisma/client'; // Cambiar a Prisma enum
 
 export class RegisterDto {
   @ApiProperty({ example: 'John Doe' })
@@ -21,8 +22,14 @@ export class RegisterDto {
   @IsEnum(UserRole)
   role: UserRole;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ 
+    description: 'Tenant ID (optional - required for non-admin users)',
+    example: 'clt2n9z8g000008l49v9o1x2z',
+    required: false 
+  })
   @IsOptional()
   @IsString()
-  buildingId?: string;
+  tenantId?: string;
+
+  // REMOVED: buildingId ya no existe en el schema multi-tenant
 }

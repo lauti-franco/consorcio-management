@@ -25,7 +25,14 @@ const prisma_module_1 = require("./prisma/prisma.module");
 const subscriptions_module_1 = require("./subscriptions/subscriptions.module");
 const units_module_1 = require("./units/units.module");
 const dashboard_module_1 = require("./dashboard/dashboard.module");
+const tenant_middleware_1 = require("./common/middleware/tenant.middleware");
 let AppModule = class AppModule {
+    configure(consumer) {
+        consumer
+            .apply(tenant_middleware_1.TenantMiddleware)
+            .exclude('auth/(.*)', 'health', 'api', 'api/(.*)', 'docs', 'docs/(.*)', 'uploads/(.*)', 'files/public/(.*)', 'webhooks/(.*)', 'payments/webhook/(.*)', 'public/(.*)')
+            .forRoutes('*');
+    }
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([

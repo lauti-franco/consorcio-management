@@ -16,51 +16,77 @@ exports.DashboardController = void 0;
 const common_1 = require("@nestjs/common");
 const dashboard_service_1 = require("./dashboard.service");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
-const current_user_decorator_1 = require("../common/decorators/current-user.decorator");
+const roles_guard_1 = require("../common/guards/roles.guard");
+const roles_decorator_1 = require("../common/decorators/roles.decorator");
+const client_1 = require("@prisma/client");
 const swagger_1 = require("@nestjs/swagger");
 let DashboardController = class DashboardController {
     constructor(dashboardService) {
         this.dashboardService = dashboardService;
     }
-    getAdminDashboard(user) {
-        return this.dashboardService.getAdminDashboard(user.id);
+    getUserId(req) {
+        return req.user?.id;
     }
-    getResidentDashboard(user) {
-        return this.dashboardService.getResidentDashboard(user.id);
+    getTenantId(req) {
+        return req.tenant?.id;
     }
-    getMaintenanceDashboard(user) {
-        return this.dashboardService.getMaintenanceDashboard(user.id);
+    getUserRole(req) {
+        return req.user?.role;
+    }
+    getAdminDashboard(req) {
+        return this.dashboardService.getAdminDashboard(this.getUserId(req), this.getTenantId(req));
+    }
+    getResidentDashboard(req) {
+        return this.dashboardService.getResidentDashboard(this.getUserId(req), this.getTenantId(req));
+    }
+    getMaintenanceDashboard(req) {
+        return this.dashboardService.getMaintenanceDashboard(this.getUserId(req), this.getTenantId(req));
+    }
+    getDashboard(req) {
+        return this.dashboardService.getDashboardByRole(this.getUserId(req), this.getTenantId(req), this.getUserRole(req));
     }
 };
 exports.DashboardController = DashboardController;
 __decorate([
     (0, common_1.Get)('admin'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get admin dashboard data' }),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.ADMIN, client_1.UserRole.SUPER_ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Get admin dashboard data for current tenant' }),
+    __param(0, (0, common_1.Req)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], DashboardController.prototype, "getAdminDashboard", null);
 __decorate([
     (0, common_1.Get)('resident'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get resident dashboard data' }),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.RESIDENT),
+    (0, swagger_1.ApiOperation)({ summary: 'Get resident dashboard data for current tenant' }),
+    __param(0, (0, common_1.Req)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], DashboardController.prototype, "getResidentDashboard", null);
 __decorate([
     (0, common_1.Get)('maintenance'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get maintenance dashboard data' }),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.MAINTENANCE),
+    (0, swagger_1.ApiOperation)({ summary: 'Get maintenance dashboard data for current tenant' }),
+    __param(0, (0, common_1.Req)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], DashboardController.prototype, "getMaintenanceDashboard", null);
+__decorate([
+    (0, common_1.Get)(),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.ADMIN, client_1.UserRole.RESIDENT, client_1.UserRole.MAINTENANCE, client_1.UserRole.SUPER_ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Get dashboard data based on user role' }),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], DashboardController.prototype, "getDashboard", null);
 exports.DashboardController = DashboardController = __decorate([
     (0, swagger_1.ApiTags)('dashboard'),
     (0, common_1.Controller)('dashboard'),
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, swagger_1.ApiBearerAuth)(),
     __metadata("design:paramtypes", [dashboard_service_1.DashboardService])
 ], DashboardController);

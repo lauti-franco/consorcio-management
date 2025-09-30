@@ -1,5 +1,5 @@
 // src/app.module.ts
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -17,6 +17,9 @@ import { PrismaModule } from './prisma/prisma.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { UnitsModule } from './units/units.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+
+// Importar el middleware de tenant
+import { TenantMiddleware } from './common/middleware/tenant.middleware';
 
 @Module({
   imports: [
@@ -52,4 +55,34 @@ import { DashboardModule } from './dashboard/dashboard.module';
     DashboardModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(TenantMiddleware)
+      .exclude(
+        // Rutas de autenticación (públicas)
+        'auth/(.*)',
+        
+        // Health checks (si los tienes)
+        'health',
+        
+        // Documentación de API (Swagger)
+        'api',
+        'api/(.*)',
+        'docs',
+        'docs/(.*)',
+        
+        // Archivos estáticos y uploads
+        'uploads/(.*)',
+        'files/public/(.*)',
+        
+        // Webhooks externos (pagos, etc.)
+        'webhooks/(.*)',
+        'payments/webhook/(.*)',
+        
+        // Rutas públicas de información
+        'public/(.*)'
+      )
+      .forRoutes('*');
+  }
+}
