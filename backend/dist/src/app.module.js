@@ -8,69 +8,39 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
-const config_1 = require("@nestjs/config");
-const platform_express_1 = require("@nestjs/platform-express");
-const multer_1 = require("multer");
-const path_1 = require("path");
-const configuration_1 = require("./config/configuration");
-const auth_module_1 = require("./auth/auth.module");
-const users_module_1 = require("./users/users.module");
-const buildings_module_1 = require("./buildings/buildings.module");
-const expenses_module_1 = require("./expenses/expenses.module");
-const payments_module_1 = require("./payments/payments.module");
-const tickets_module_1 = require("./tickets/tickets.module");
-const tasks_module_1 = require("./tasks/tasks.module");
-const files_module_1 = require("./files/files.module");
-const prisma_module_1 = require("./prisma/prisma.module");
-const subscriptions_module_1 = require("./subscriptions/subscriptions.module");
-const units_module_1 = require("./units/units.module");
-const dashboard_module_1 = require("./dashboard/dashboard.module");
-const documents_module_1 = require("./documents/documents.module");
-const kpis_module_1 = require("./kpis/kpis.module");
-const tenant_middleware_1 = require("./common/middleware/tenant.middleware");
+const core_module_1 = require("./core/core.module");
+const auth_module_1 = require("./modules/auth/auth.module");
+const tenant_module_1 = require("./modules/tenant/tenant.module");
+const users_module_1 = require("./modules/users/users.module");
+const buildings_module_1 = require("./modules/buildings/buildings.module");
+const units_module_1 = require("./modules/units/units.module");
+const payments_module_1 = require("./modules/payments/payments.module");
+const expenses_module_1 = require("./modules/expenses/expenses.module");
+const dashboard_module_1 = require("./modules/dashboard/dashboard.module");
+const documents_module_1 = require("./modules/documents/documents.module");
+const tasks_module_1 = require("./modules/tasks/tasks.module");
+const tickets_module_1 = require("./modules/tickets/tickets.module");
+const subscriptions_module_1 = require("./modules/subscriptions/subscriptions.module");
+const kpis_module_1 = require("./modules/kpis/kpis.module");
 let AppModule = class AppModule {
-    configure(consumer) {
-        consumer
-            .apply(tenant_middleware_1.TenantMiddleware)
-            .exclude('auth/(.*)', 'health', 'api', 'api/(.*)', 'docs', 'docs/(.*)', 'uploads/(.*)', 'files/public/(.*)', 'webhooks/(.*)', 'payments/webhook/(.*)', 'public/(.*)')
-            .forRoutes('*');
-    }
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            config_1.ConfigModule.forRoot({
-                isGlobal: true,
-                load: [configuration_1.default],
-                envFilePath: '.env',
-            }),
-            platform_express_1.MulterModule.register({
-                storage: (0, multer_1.diskStorage)({
-                    destination: './uploads',
-                    filename: (req, file, callback) => {
-                        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-                        const ext = (0, path_1.extname)(file.originalname);
-                        callback(null, `${uniqueSuffix}${ext}`);
-                    },
-                }),
-                limits: {
-                    fileSize: 10 * 1024 * 1024,
-                },
-            }),
-            prisma_module_1.PrismaModule,
+            core_module_1.CoreModule,
             auth_module_1.AuthModule,
+            tenant_module_1.TenantModule,
             users_module_1.UsersModule,
             buildings_module_1.BuildingsModule,
-            expenses_module_1.ExpensesModule,
-            payments_module_1.PaymentsModule,
-            tickets_module_1.TicketsModule,
-            tasks_module_1.TasksModule,
-            files_module_1.FilesModule,
-            subscriptions_module_1.SubscriptionsModule,
             units_module_1.UnitsModule,
+            payments_module_1.PaymentsModule,
+            expenses_module_1.ExpensesModule,
             dashboard_module_1.DashboardModule,
             documents_module_1.DocumentsModule,
+            tasks_module_1.TasksModule,
+            tickets_module_1.TicketsModule,
+            subscriptions_module_1.SubscriptionsModule,
             kpis_module_1.KpisModule,
         ],
     })
