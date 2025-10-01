@@ -1,14 +1,17 @@
+// lib/src/screens/admin/admin_dashboard.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/dashboard_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/expense_provider.dart';
+import '../../providers/documents_provider.dart'; // ✅ NUEVO IMPORT
 import '../../models/expense_model.dart';
 import '../../widgets/common/dashboard_base.dart';
 import '../../widgets/admin/stats_grid.dart';
 import '../../widgets/admin/quick_actions.dart';
 import '../../widgets/admin/recent_activity.dart';
 import '../../screens/admin/expenses_management_screen.dart';
+import '../../screens/documents/documents_screen.dart'; // ✅ NUEVO IMPORT
 import '../../widgets/admin/expense_list_item.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -32,9 +35,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final expenseProvider =
           Provider.of<ExpenseProvider>(context, listen: false);
+      final documentsProvider =
+          Provider.of<DocumentsProvider>(context, listen: false); // ✅ NUEVO
 
       dashboardProvider.loadDashboardData(authProvider.user?.id);
       expenseProvider.loadExpenses();
+      documentsProvider
+          .loadDocuments(); // ✅ NUEVO: Cargar documentos al iniciar
     });
   }
 
@@ -54,7 +61,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
         DashboardTab(
           icon: Icons.receipt,
           label: 'Expensas',
-          content: _buildExpensesTab(), // ✅ CORREGIDO
+          content: _buildExpensesTab(),
+        ),
+        DashboardTab(
+          // ✅ NUEVO TAB DE DOCUMENTOS
+          icon: Icons.folder,
+          label: 'Documentos',
+          content: _buildDocumentsTab(),
         ),
         DashboardTab(
           icon: Icons.assignment,
@@ -70,7 +83,20 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  // ✅ MÉTODO CORREGIDO - ENVUELVE CON PROVIDERS
+  // ✅ NUEVO MÉTODO PARA DOCUMENTOS
+  Widget _buildDocumentsTab() {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(
+          value: Provider.of<DocumentsProvider>(context),
+        ),
+      ],
+      child: const DocumentsScreen(
+          consorcioId: 1), // TODO: Obtener consorcioId real
+    );
+  }
+
+  // ... (el resto de tus métodos existentes se mantienen IGUAL)
   Widget _buildExpensesTab() {
     return MultiProvider(
       providers: [
@@ -108,6 +134,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
+  // ... (mantener todos tus métodos existentes sin cambios)
   Widget _buildRecentExpensesSection() {
     return Consumer<ExpenseProvider>(
       builder: (context, expenseProvider, child) {
@@ -158,7 +185,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  // ... (mantener el resto de tus métodos igual)
   Widget _buildTasksTab(DashboardProvider provider) {
     return Padding(
       padding: const EdgeInsets.all(16.0),

@@ -42,6 +42,7 @@ class DashboardBase extends StatelessWidget {
             ),
           ],
           bottom: TabBar(
+            isScrollable: true,
             tabs: tabs
                 .map((tab) => Tab(
                       icon: Icon(tab.icon),

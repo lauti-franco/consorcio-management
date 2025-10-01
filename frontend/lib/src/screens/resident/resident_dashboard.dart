@@ -1,3 +1,4 @@
+// lib/src/screens/resident/resident_dashboard.dart
 import 'package:flutter/material.dart';
 import '../../widgets/common/dashboard_base.dart';
 
@@ -14,6 +15,20 @@ class ResidentDashboard extends StatelessWidget {
           icon: Icons.receipt,
           label: 'Mis Expensas',
           content: _buildExpensesTab(),
+        ),
+        DashboardTab(
+          icon: Icons.folder,
+          label: 'Documentos',
+          content: Container(
+            // ✅ PRUEBA SIMPLE
+            color: Colors.blue[50],
+            child: const Center(
+              child: Text(
+                '🎉 ¡PESTAÑA DOCUMENTOS FUNCIONA!',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
         ),
         DashboardTab(
           icon: Icons.support,

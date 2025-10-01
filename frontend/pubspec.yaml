@@ -16,9 +16,12 @@ dependencies:
   provider: ^6.1.1
   shared_preferences: ^2.2.2
   flutter_secure_storage: ^9.0.0
-  intl: 0.20.2
+  intl: 0.20.2  # ✅ Actualizado a la versión compatible
   image_picker: ^1.0.4
-  file_picker: ^5.5.0
+  file_picker: 10.3.3
+  mime: ^1.0.4
+  open_file: ^3.3.1
+  path_provider: ^2.1.1
   flutter_localizations:
     sdk: flutter
 
